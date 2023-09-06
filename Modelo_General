@@ -1,0 +1,1838 @@
+
+#LIBRERÍAS
+#------------------------------------------------------------------------------------------
+library(gdata)
+library(ROCR)
+library(plotrix)
+library(MKmisc)
+#------------------------------------------------------------------------------------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# ESTE SCRIPT TIENE POR OBJETIVO UNIFICAR LAS BASES DE BURO Y DEMOGRAFICAS Y DEPURAR LA
+# INFORMACION, EXTRAER LA MUESTRA DE BUENOS Y FINALMENTE SE GENERAL EL MODELO LOGISTICO
+#
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#                                    CARGA DE BASES
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#Se carga la información disponible de los clientes que pertenecen a la cartera militar
+#------------------------------------------------------------------------------------------
+setwd("C:/Users/dgyanez/Documents/Scoring_Consumo_Militar/Bases_Brutas_TXT")
+Demografico_Completa=read.csv("InformacionSol1329656Final_24-05-2011.txt",header=TRUE,sep="\t") 
+Data_Buro=read.csv("Base_Buro_Consolidado.txt",header=TRUE,sep="\t")
+Tipo_Cliente=read.csv("Tipo_Cliente.txt",header=TRUE,sep="\t")
+Rango_y_Sueldo=read.csv("dy_requerimiento_20mayo2011.txt",header=TRUE,sep="\t")
+Demografico_Incompleta=read.csv("Siglo_XXI.txt",header=TRUE,sep="\t")
+C_NacimientoC=read.csv("C_NACIM_275.txt",header=TRUE,sep="\t")
+Montos=read.csv("Montos_desembolsados.txt",header=TRUE,sep="\t")
+Data_Modelo=read.csv("Base_Muestra.txt",header=TRUE,sep="\t")
+#------------------------------------------------------------------------------------------
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#LIMPIEZA DE LA BASE Demografico_Completa (V. de Interés), Tipo_Cliente y Rango_y_Sueldo
+#Esta programación tiene por objetivo depurara la información base de los clientes 
+#de la cartera militar
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#------------------------------------------------------------------------------------------
+# Estado Civil
+  Demografico_Completa$ESTADO.CIVIL=as.character(Demografico_Completa$ESTADO.CIVIL)
+  Demografico_Completa$ESTADO.CIVIL[Demografico_Completa$ESTADO.CIVIL=="Unionlibre"]="Unión Libre"
+  Demografico_Completa$ESTADO.CIVIL[Demografico_Completa$ESTADO.CIVIL==""]="Vacío"
+  Demografico_Completa$ESTADO.CIVIL=as.factor(Demografico_Completa$ESTADO.CIVIL)
+  table(Demografico_Completa$ESTADO.CIVIL)
+  Demografico_Completa$E_CIVIL=Demografico_Completa$ESTADO.CIVIL
+
+# Nivel de Educación 
+  Demografico_Completa$NIVEL.DE.EDUCACION=as.character(Demografico_Completa$NIVEL.DE.EDUCACION)
+  Demografico_Completa$NIVEL.DE.EDUCACION[Demografico_Completa$NIVEL.DE.EDUCACION==""]="Vacío"
+  Demografico_Completa$NIVEL.DE.EDUCACION[Demografico_Completa$NIVEL.DE.EDUCACION=="Post doctorado"]="Post Doctorado"
+  Demografico_Completa$NIVEL.DE.EDUCACION[Demografico_Completa$NIVEL.DE.EDUCACION=="POSTGRADO"|Demografico_Completa$NIVEL.DE.EDUCACION=="Máster"]="Post Grado"
+  Demografico_Completa$NIVEL.DE.EDUCACION[Demografico_Completa$NIVEL.DE.EDUCACION=="SIN ESTUDIOS"|Demografico_Completa$NIVEL.DE.EDUCACION=="Ninguna"]="Sin Estudios"
+  Demografico_Completa$NIVEL.DE.EDUCACION[Demografico_Completa$NIVEL.DE.EDUCACION=="Técnica"]="Otros Estudios"
+  Demografico_Completa$NIVEL.DE.EDUCACION[Demografico_Completa$NIVEL.DE.EDUCACION=="Bachillerato"|Demografico_Completa$NIVEL.DE.EDUCACION=="FORMACION INTERMEDIA"|Demografico_Completa$NIVEL.DE.EDUCACION=="MEDIOS/SECUNDARIOS"]="Secundaria"
+  Demografico_Completa$NIVEL.DE.EDUCACION[Demografico_Completa$NIVEL.DE.EDUCACION=="Egresado"|Demografico_Completa$NIVEL.DE.EDUCACION=="Licenciatura"|Demografico_Completa$NIVEL.DE.EDUCACION=="Superior"|Demografico_Completa$NIVEL.DE.EDUCACION=="UNIVERSITARIO"]="Universitaria"
+  Demografico_Completa$NIVEL.DE.EDUCACION[Demografico_Completa$NIVEL.DE.EDUCACION=="Primaria"|Demografico_Completa$NIVEL.DE.EDUCACION=="PRIMARIOS/BASICOS"]="Primaria"
+  Demografico_Completa$NIVEL.DE.EDUCACION=as.factor(Demografico_Completa$NIVEL.DE.EDUCACION)
+  table(Demografico_Completa$NIVEL.DE.EDUCACION)
+  Demografico_Completa$N_EDUCA=Demografico_Completa$NIVEL.DE.EDUCACION
+
+# Tipo de Vivienda
+  Demografico_Completa$TIPO.DE.VIVIENDA=as.character(Demografico_Completa$TIPO.DE.VIVIENDA)
+  Demografico_Completa$TIPO.DE.VIVIENDA[Demografico_Completa$TIPO.DE.VIVIENDA==""]="Vacío"
+  Demografico_Completa$TIPO.DE.VIVIENDA=as.factor(Demografico_Completa$TIPO.DE.VIVIENDA)
+  table(Demografico_Completa$TIPO.DE.VIVIENDA)
+  Demografico_Completa$T_VIVIE=Demografico_Completa$TIPO.DE.VIVIENDA
+
+# Ciudad de Dirección
+  Demografico_Completa$CIUDAD_DIRECCION=as.character(Demografico_Completa$CIUDAD_DIRECCION)
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION==""|Demografico_Completa$CIUDAD_DIRECCION==" "]="Vacío"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="calvas"]="CALVAS"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="PINDAL "]="PINDAL"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="YANTZAZA"]="YANZATZA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="VINCES "]="VINCES"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="PARROQUIA CALDERON CIUDAD QUITO"]="QUITO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="PEDRO VICENTE MALDON"]="PEDRO VICENTE MALDONADO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="PUERTO FRANCISCO DE ORELLANA"]="FCO. DE ORELLANA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="El Coca"]="EL COCA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="SAN LORENZO "]="SAN LORENZO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="SANTA ELENA "]="SANTA ELENA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="SANTA ROSA "|Demografico_Completa$CIUDAD_DIRECCION=="STA ROSA"|Demografico_Completa$CIUDAD_DIRECCION=="STA ROSA "|Demografico_Completa$CIUDAD_DIRECCION=="STA. ROSA "]="SANTA ROSA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="Guaranda"]="GUARANDA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="LAS LAJAS "]="LAS LAJAS"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="LIBERTAD "]="LIBERTAD"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="MACHACHI "]="MACHACHI"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="MANTA "]="MANTA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="MILAGRO "]="MILAGRO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="MONTALVO "|Demografico_Completa$CIUDAD_DIRECCION=="MONTALVO CANTON"|Demografico_Completa$CIUDAD_DIRECCION=="MONTALVO1"]="MONTALVO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="AMBATO"|Demografico_Completa$CIUDAD_DIRECCION=="AMBATO "|Demografico_Completa$CIUDAD_DIRECCION=="Ambato"]="AMBATO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="CAYAMBE"|Demografico_Completa$CIUDAD_DIRECCION=="CAYAMBE "]="CAYAMBE"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="Chone"|Demografico_Completa$CIUDAD_DIRECCION=="CHONE"]="CHONE"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="Cuenca"|Demografico_Completa$CIUDAD_DIRECCION=="CUENCA "|Demografico_Completa$CIUDAD_DIRECCION=="cuenca"]="CUENCA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="DURAN"|Demografico_Completa$CIUDAD_DIRECCION=="DURAN "|Demografico_Completa$CIUDAD_DIRECCION=="DUARAN"]="DURAN"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="esmeraldas"|Demografico_Completa$CIUDAD_DIRECCION=="ESMERALDAS "|Demografico_Completa$CIUDAD_DIRECCION=="Esmeraldas"|Demografico_Completa$CIUDAD_DIRECCION=="ESMERALDAS"|Demografico_Completa$CIUDAD_DIRECCION=="ESMERALADAS"]="ESMERALDAS"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="Guayaquil"|Demografico_Completa$CIUDAD_DIRECCION=="GUAYAQUIL."|Demografico_Completa$CIUDAD_DIRECCION=="GUAYAQUL"|Demografico_Completa$CIUDAD_DIRECCION=="Guayaqui"|Demografico_Completa$CIUDAD_DIRECCION=="GUAYQUIL"|Demografico_Completa$CIUDAD_DIRECCION=="GUYAQUIL"]="GUAYAQUIL"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="IBARRA"|Demografico_Completa$CIUDAD_DIRECCION=="IBARRA "|Demografico_Completa$CIUDAD_DIRECCION=="Ibarra"]="IBARRA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="LA LIBERTAD"|Demografico_Completa$CIUDAD_DIRECCION=="LA LIBERTAD "]="LA LIBERTAD"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="LATAUCNGA"|Demografico_Completa$CIUDAD_DIRECCION=="LATACUNGA "|Demografico_Completa$CIUDAD_DIRECCION=="Latacunga"|Demografico_Completa$CIUDAD_DIRECCION=="latacunga"]="LATACUNGA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="LOJA"|Demografico_Completa$CIUDAD_DIRECCION=="LOJA "|Demografico_Completa$CIUDAD_DIRECCION=="loja"]="LOJA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="Machala"|Demografico_Completa$CIUDAD_DIRECCION=="MACHALA "]="MACHALA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="Otavalo"|Demografico_Completa$CIUDAD_DIRECCION=="OTAVALO"]="OTAVALO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="PASAJE"|Demografico_Completa$CIUDAD_DIRECCION=="PASAJE "|Demografico_Completa$CIUDAD_DIRECCION=="Pasaje"]="PASAJE"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="Puyo"|Demografico_Completa$CIUDAD_DIRECCION=="PUYO"]="PUYO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="QUEVEDO"|Demografico_Completa$CIUDAD_DIRECCION=="QUEVEDO "|Demografico_Completa$CIUDAD_DIRECCION=="Quevedo"]="QUEVEDO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="QUININDE"|Demografico_Completa$CIUDAD_DIRECCION=="QUININDE "]="QUININDE"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="QUITO"|Demografico_Completa$CIUDAD_DIRECCION=="QUITO "|Demografico_Completa$CIUDAD_DIRECCION=="Quito"|Demografico_Completa$CIUDAD_DIRECCION=="quito"]="QUITO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="RIOBAMBA"|Demografico_Completa$CIUDAD_DIRECCION=="RIOBAMBA "|Demografico_Completa$CIUDAD_DIRECCION=="Riobamba"]="RIOBAMBA"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="SALINAS"|Demografico_Completa$CIUDAD_DIRECCION=="SALINAS "|Demografico_Completa$CIUDAD_DIRECCION=="SALINAS, CHICHIPE"]="SALINAS"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="SAN MIGUEL DE LOS BA"]="SAN MIGUEL DE LOS BANCOS"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="SANTO DOMI"|Demografico_Completa$CIUDAD_DIRECCION=="SANTO DOMINGO "|Demografico_Completa$CIUDAD_DIRECCION=="SANTO DOMINGO LOS CO"|Demografico_Completa$CIUDAD_DIRECCION=="SANTO DOMINGO DE LOS COLORADOS"|Demografico_Completa$CIUDAD_DIRECCION=="STO. DOMINGO"|Demografico_Completa$CIUDAD_DIRECCION=="STO DOMINGO"|Demografico_Completa$CIUDAD_DIRECCION=="Santo Domingo"|Demografico_Completa$CIUDAD_DIRECCION=="Sto. Domingo"]="SANTO DOMINGO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="SHUSHUFINDI"|Demografico_Completa$CIUDAD_DIRECCION=="Shushufindi"]="SHUSHUFINDI"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="TULCAN "|Demografico_Completa$CIUDAD_DIRECCION=="Tulcan"]="TULCAN"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="MACAS"|Demografico_Completa$CIUDAD_DIRECCION=="MACAS "]="MACAS"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="BANOS"]="BAÑOS"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="CHIMBO "]="CHIMBO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="EL ORO "]="EL ORO"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="Los Ríos"]="LOS RIOS"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="SAN RAFAEL "]="SAN RAFAEL"
+  Demografico_Completa$CIUDAD_DIRECCION[Demografico_Completa$CIUDAD_DIRECCION=="STA.ROSA "]="STA ROSA"
+  Demografico_Completa$CIUDAD_DIRECCION=as.factor(Demografico_Completa$CIUDAD_DIRECCION)
+  table(Demografico_Completa$CIUDAD_DIRECCION)
+  Demografico_Completa$C_DIREC=Demografico_Completa$CIUDAD_DIRECCION
+
+# Ciudad de Nacimiento
+  Demografico_Incompleta$CIUDAD.NACIMIENTO=trim(as.character(Demografico_Incompleta$CIUDAD.NACIMIENTO))
+  Demografico_Incompleta$CIUDAD.NACIMIENTO=as.factor(Demografico_Incompleta$CIUDAD.NACIMIENTO)
+  Demografico_Incompleta$CIUDAD.NACIMIENTO=as.character(Demografico_Incompleta$CIUDAD.NACIMIENTO)
+  Demografico_Incompleta$CIUDAD.NACIMIENTO[Demografico_Incompleta$CIUDAD.NACIMIENTO==""]="Vacío"
+  Demografico_Incompleta$CIUDAD.NACIMIENTO=as.factor(Demografico_Incompleta$CIUDAD.NACIMIENTO)
+  table(Demografico_Incompleta$CIUDAD.NACIMIENTO)
+  Demografico_Incompleta$C_NACIM=Demografico_Incompleta$CIUDAD.NACIMIENTO
+
+# Número de Cargas Familiares
+  summary(Demografico_Completa$No..DE.CARGAS)
+  Demografico_Completa$N_CARGAS=Demografico_Completa$No..DE.CARGAS
+
+# Género
+  Demografico_Completa$SEXO=as.character(Demografico_Completa$SEXO)
+  Demografico_Completa$SEXO[Demografico_Completa$SEXO=="F"]="Femenino"
+  Demografico_Completa$SEXO[Demografico_Completa$SEXO=="M"]="Masculino"
+  Demografico_Completa$SEXO[Demografico_Completa$SEXO==""]="Vacío"
+  Demografico_Completa$SEXO=as.factor(Demografico_Completa$SEXO)
+  table(Demografico_Completa$SEXO)
+  Demografico_Completa$GENERO=Demografico_Completa$SEXO
+
+# Edad Cliente
+  summary(Demografico_Completa$EDAD)
+  
+# Rango Militar Cliente
+  Rango_y_Sueldo$des_rango=as.character(Rango_y_Sueldo$des_rango)
+  Rango_y_Sueldo$des_rango[Rango_y_Sueldo$des_rango==""]="EMPLEADO CIVIL"
+  Rango_y_Sueldo$des_rango=as.factor(Rango_y_Sueldo$des_rango)
+  table(Rango_y_Sueldo$des_rango)
+  Rango_y_Sueldo$RANGO=Rango_y_Sueldo$des_rango
+
+# Saldo Promedio Cuenta
+  Demografico_Completa$SALDO.PROMEDIO=as.character(Demografico_Completa$SALDO.PROMEDIO)
+  Demografico_Completa$SALDO.PROMEDIO[Demografico_Completa$SALDO.PROMEDIO==""]="Vacío"
+  Demografico_Completa$SALDO.PROMEDIO=as.factor(Demografico_Completa$SALDO.PROMEDIO)
+  table(Demografico_Completa$SALDO.PROMEDIO)
+  Demografico_Completa$SPC=Demografico_Completa$SALDO.PROMEDIO
+
+# Antiguedad Cuenta (Meses) 
+  Demografico_Completa$ANTIGÜEDAD=as.numeric(Demografico_Completa$ANTIGÜEDAD)
+  summary(Demografico_Completa$ANTIGÜEDAD)
+  Demografico_Completa$ANTIG=Demografico_Completa$ANTIGÜEDAD
+
+# Sueldo Líquido Deudo (Acreditación)
+  summary(Demografico_Completa$SUELDO.LIQUIDO.DEUDO)
+  Demografico_Completa$ACRED=Demografico_Completa$SUELDO.LIQUIDO.DEUDO
+
+# Sueldo Cliente
+  summary(Rango_y_Sueldo$sueldo)
+  Rango_y_Sueldo$SUELDO=Rango_y_Sueldo$sueldo
+#------------------------------------------------------------------------------------------
+# INPUTACIÓN SUELDOS NO ENVIADOS POR LA COMANDANCIA (Valores de 0)
+#------------------------------------------------------------------------------------------
+  # Las observaciones con valores de cero serán remplazados por el sueldo promedio 
+  # en cada rango sin tomar en cuenta aquellos ceros.
+  Mrango=aggregate(SUELDO[Rango_y_Sueldo$SUELDO!=0]~RANGO[Rango_y_Sueldo$SUELDO!=0], 
+  data=Rango_y_Sueldo, mean)
+  names(Mrango)=c("RANGO","SUELDO_P") 
+  N_Rango_y_Sueldo <- merge(Rango_y_Sueldo, Mrango, by.y="RANGO", by.x="RANGO", all.x=TRUE)
+  N_Rango_y_Sueldo[N_Rango_y_Sueldo[11]==0 & is.na(N_Rango_y_Sueldo[11])==FALSE,
+  c(11)]=N_Rango_y_Sueldo[N_Rango_y_Sueldo[11]==0 & is.na(N_Rango_y_Sueldo[11])==FALSE,
+  c(12)]
+  N_Rango_y_Sueldo[is.na(N_Rango_y_Sueldo[11])==TRUE,c(11)]=N_Rango_y_Sueldo[is.na(N_Rango_y_Sueldo[11])==TRUE,c(12)]
+  # En la base N_Rango_y_Sueldo, la columna SUELDO presenta los sueldos inputados para
+  # aquellos que tenían el valor de 0. 
+#------------------------------------------------------------------------------------------
+
+# AGRUPACIÓN DE RANGOS
+#------------------------------------------------------------------------------------------  
+  N_Rango_y_Sueldo$RANGO <- as.character(N_Rango_y_Sueldo$RANGO)
+  N_Rango_y_Sueldo$RANGO[N_Rango_y_Sueldo$RANGO=="SOLDADO"|N_Rango_y_Sueldo$RANGO=="MARINERO"]="SOLDADOS"
+  N_Rango_y_Sueldo$RANGO[N_Rango_y_Sueldo$RANGO=="SARGENTO PRIMERO"|N_Rango_y_Sueldo$RANGO=="SARGENTO SEGUNDO"|N_Rango_y_Sueldo$RANGO=="SUBOFICIAL MAYOR"|N_Rango_y_Sueldo$RANGO=="SUBOFICIAL PRIMERO"|N_Rango_y_Sueldo$RANGO=="SUBOFICIAL SEGUNDO"]="DESDE_SARGENTO"
+  N_Rango_y_Sueldo$RANGO[N_Rango_y_Sueldo$RANGO=="CABO PRIMERO"|N_Rango_y_Sueldo$RANGO=="CABO SEGUNDO"]="CABOS"
+  N_Rango_y_Sueldo$RANGO[N_Rango_y_Sueldo$RANGO=="ALFEREZ DE FRAGATA"|N_Rango_y_Sueldo$RANGO=="SUBTENIENTE"|N_Rango_y_Sueldo$RANGO=="TENIENTE"|N_Rango_y_Sueldo$RANGO=="TENIENTE DE FRAGATA"|N_Rango_y_Sueldo$RANGO=="CAPITAN"|N_Rango_y_Sueldo$RANGO=="TENIENTE DE NAVIO"|N_Rango_y_Sueldo$RANGO=="KADETE"]="OFICIALES_MENORES"
+  N_Rango_y_Sueldo$RANGO[N_Rango_y_Sueldo$RANGO=="MAYOR"|N_Rango_y_Sueldo$RANGO=="CAPITAN DE CORBETA"|N_Rango_y_Sueldo$RANGO=="TENIENTE CORONEL"|N_Rango_y_Sueldo$RANGO=="CAPITAN DE FRAGATA"|N_Rango_y_Sueldo$RANGO=="CORONEL"|N_Rango_y_Sueldo$RANGO=="CAPITAN DE NAVIO"|N_Rango_y_Sueldo$RANGO=="CONTRALMIRANTE"|N_Rango_y_Sueldo$RANGO=="GENERAL DE BRIGADA"|N_Rango_y_Sueldo$RANGO=="VICEALMIRANTE"]="OFICIALES_MAYORES_Y_GENERALES"
+  N_Rango_y_Sueldo$RANGO[N_Rango_y_Sueldo$RANGO=="EMPLEADO CIVIL"| N_Rango_y_Sueldo$RANGO=="MONTEPIO ESPOSA"|N_Rango_y_Sueldo$RANGO=="MONTEPIO HIJO"|N_Rango_y_Sueldo$RANGO=="SERVIDORES PUBLICOS"|N_Rango_y_Sueldo$RANGO=="MONTEPIO PADRE"]="EMCI"
+  N_Rango_y_Sueldo$RANGO <- as.factor(N_Rango_y_Sueldo$RANGO)
+  table(N_Rango_y_Sueldo$RANGO)
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# BASE SOCIO DEMOGRÁFICA (17509 clientes entre buenos, malos e inciertos)
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+  BS_y_NRS <- merge(Demografico_Completa[c("CEDULA","E_CIVIL","N_EDUCA","T_VIVIE","C_DIREC",
+  "N_CARGAS","GENERO","EDAD","SPC","ANTIG","ACRED")], N_Rango_y_Sueldo[c("cedula","RANGO",
+  "SUELDO")], by.x="CEDULA", by.y="cedula")
+  BS_completa <- merge(BS_y_NRS, Demografico_Incompleta[c("CEDULA","C_NACIM")], by.x="CEDULA",
+  by.y="CEDULA", all.x=TRUE)  
+  Data_SD <- merge(BS_completa, Tipo_Cliente, by.x="CEDULA", by.y="IDENTIFICACION")
+  # NA ---> Vacío
+    Data_SD$C_NACIM=as.character(Data_SD$C_NACIM)
+    Data_SD$C_NACIM[is.na(Data_SD$C_NACIM)==TRUE]="Vacío"
+    Data_SD$C_NACIM=as.factor(Data_SD$C_NACIM)
+#------------------------------------------------------------------------------------------
+# AGRUPACIÓN CIUDAD DIRECCIÓN
+#------------------------------------------------------------------------------------------
+  tabla_cr=table(Data_SD$C_DIREC,Data_SD$TIPO_CLIENTE)
+  Total_cr=apply(tabla_cr,1,sum)
+  fila_cr=apply(tabla_cr,2,sum)
+  tabla_cr=cbind(tabla_cr,Total_cr)
+  tabla_cr=tabla_cr[order(-tabla_cr[,3]),]
+  tabla_cr=tabla_cr[tabla_cr[,4]>0,]
+  tabla_malos_cr=cbind(tabla_cr[tabla_cr[,3]/fila_cr[3]>0.01,])
+  OtrasC=apply(tabla_cr[tabla_cr[,3]/fila_cr[3]<=0.01,],2,sum)
+  tabla_res_cr=rbind(tabla_malos_cr,OtrasC) 
+  tabla_res_cr
+
+  Data_SD$C_DIREC=as.character(Data_SD$C_DIREC)
+  Data_SD$C_DIREC[Data_SD$C_DIREC!="GUAYAQUIL" & Data_SD$C_DIREC!="QUITO" & Data_SD$C_DIREC!="LATACUNGA" & Data_SD$C_DIREC!="MACHALA" & Data_SD$C_DIREC!="SALINAS" & Data_SD$C_DIREC!="ESMERALDAS" & Data_SD$C_DIREC!="LA LIBERTAD" & Data_SD$C_DIREC!="DURAN" & Data_SD$C_DIREC!="MILAGRO" & Data_SD$C_DIREC!="RIOBAMBA" & Data_SD$C_DIREC!="QUEVEDO" & Data_SD$C_DIREC!="SANTA ROSA" & Data_SD$C_DIREC!="SANTO DOMINGO"]="OTRASC"
+  Data_SD$C_DIREC=as.factor(Data_SD$C_DIREC)
+#------------------------------------------------------------------------------------------
+# AGRUPACIÓN CIUDAD NACIMIENTO
+#------------------------------------------------------------------------------------------
+  # Limpieza Ciudad Nacimiento 275
+    C_NacimientoC$C_NACIMIENTO=trim(as.character(C_NacimientoC$C_NACIMIENTO))
+    C_NacimientoC$C_NACIMIENTO=as.factor(C_NacimientoC$C_NACIMIENTO)
+    C_NacimientoC$C_NACIMIENTO=as.character(C_NacimientoC$C_NACIMIENTO)
+    C_NacimientoC$C_NACIMIENTO[C_NacimientoC$C_NACIMIENTO=="BAÑOS"]="BANIOS"
+    C_NacimientoC$C_NACIMIENTO[C_NacimientoC$C_NACIMIENTO=="RUMINAHUI"]="RUMINIAHUI"
+    C_NacimientoC$C_NACIMIENTO[C_NacimientoC$C_NACIMIENTO=="CAÑAR"]="CANIAR"
+    C_NacimientoC$C_NACIMIENTO=as.factor(C_NacimientoC$C_NACIMIENTO)
+    table(C_NacimientoC$C_NACIMIENTO)
+  
+  # Unión Ciudad de Nacimiento 275 con Data_SD
+    Provisional <- merge(Data_SD, C_NacimientoC, by.x="CEDULA", by.y="CEDULA", all.x=TRUE)
+    Provisional$C_NACIM=as.character(Provisional$C_NACIM)
+    Provisional$C_NACIMIENTO=as.character(Provisional$C_NACIMIENTO)    
+    Provisional[Provisional[14]=="Vacío",c(14)]=Provisional[Provisional[14]=="Vacío",c(16)]    
+    Provisional$C_NACIM=as.factor(Provisional$C_NACIM)
+    Data_SD$C_NACIM=Provisional$C_NACIM
+
+  tabla_cn=table(Data_SD$C_NACIM,Data_SD$TIPO_CLIENTE)
+  Total_cn=apply(tabla_cn,1,sum)
+  fila_cn=apply(tabla_cn,2,sum)
+  tabla_cn=cbind(tabla_cn,Total_cn)
+  tabla_cn=tabla_cn[order(-tabla_cn[,3]),]
+  tabla_cn=tabla_cn[tabla_cn[,4]>0,]
+  tabla_malos_cn=cbind(tabla_cn[tabla_cn[,3]/fila_cn[3]>0.01,])
+  OtrasC=apply(tabla_cn[tabla_cn[,3]/fila_cn[3]<=0.01,],2,sum)
+  tabla_res_cn=rbind(tabla_malos_cn,OtrasC) 
+  tabla_res_cn
+
+  Data_SD$C_NACIM=as.character(Data_SD$C_NACIM)
+  Data_SD$C_NACIM[Data_SD$C_NACIM!="GUAYAQUIL" & Data_SD$C_NACIM!="QUITO" & Data_SD$C_NACIM!="LATACUNGA" & Data_SD$C_NACIM!="MACHALA" & Data_SD$C_NACIM!="ESMERALDAS" & Data_SD$C_NACIM!="RIOBAMBA" & Data_SD$C_NACIM!="MILAGRO" & Data_SD$C_NACIM!="QUEVEDO" & Data_SD$C_NACIM!="BALAO" & Data_SD$C_NACIM!="DURAN" & Data_SD$C_NACIM!="SANTA ROSA" & Data_SD$C_NACIM!="LOJA"]="OTRASC"
+  Data_SD$C_NACIM=as.factor(Data_SD$C_NACIM)
+#------------------------------------------------------------------------------------------
+# Índice: Acreditación/Sueldo
+#------------------------------------------------------------------------------------------
+  Data_SD$A_S=Data_SD$ACRED/Data_SD$SUELDO
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# ANÁLISIS BASE DE BURÓ 
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# Variables con un número diferente de cero menor al 10% de entre buenos y malos son 
+# etiquetadas como NO PARTICIPA 
+#------------------------------------------------------------------------------------------
+  Prueba_0=merge(Data_SD[c(1,11,15)],Data_Buro[c(-1,-2,-4)],by.x="CEDULA",by.y="CEDULA")
+  Prueba_1=merge(Prueba_0, Montos[c(1,3)], by.x="CEDULA", by.y="IDENTIFICACION")
+  Data_Buro=Prueba_1 
+#------------------------------------------------------------------------------------------
+  # ÍNDICE DE CALIFICACION (Porcentaje de calificación A del cliente sobre todas las calificaciones)
+  #(PUEDE PARTICIPAR)
+  Data_Buro$ICALIF=Data_Buro$A_12_MESES/rowSums(cbind(Data_Buro$A_12_MESES,Data_Buro$B_12_MESES,Data_Buro$C_12_MESES,Data_Buro$D_12_MESES,Data_Buro$E_12_MESES))
+  ftable(by(Data_Buro$ICALIF,list(cut(Data_Buro$ICALIF,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+#------------------------------------------------------------------------------------------
+
+#SALDOS CARTERA DE CONSUMO  
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+# POR VENCER (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    Data_Buro$S_Ccons_0_x_V[Data_Buro$S_Ccons_0_x_V>=Data_Buro$MONTO]=Data_Buro$S_Ccons_0_x_V[Data_Buro$S_Ccons_0_x_V>=Data_Buro$MONTO]-Data_Buro$MONTO[Data_Buro$S_Ccons_0_x_V>=Data_Buro$MONTO]
+    #0: (PUEDE PARTICIPAR)
+    ftable(by(Data_Buro$S_Ccons_0_x_V,list(cut(Data_Buro$S_Ccons_0_x_V,c(-1,0,50000)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (PUEDE PARTICIPAR)
+    ftable(by(Data_Buro$S_Ccons_.3_x_V,list(cut(Data_Buro$S_Ccons_.3_x_V,c(-1,0,28390)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (PUEDE PARTICIPAR)
+    ftable(by(Data_Buro$S_Ccons_.6_x_V,list(cut(Data_Buro$S_Ccons_.6_x_V,c(-1,0,27460)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (PUEDE PARTICIPAR)
+    ftable(by(Data_Buro$S_Ccons_.9_x_V,list(cut(Data_Buro$S_Ccons_.9_x_V,c(-1,0,29100)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (PUEDE PARTICIPAR)
+    ftable(by(Data_Buro$S_Ccons_.12_x_V,list(cut(Data_Buro$S_Ccons_.12_x_V,c(-1,0,23160)),Data_Buro$TIPO_CLIENTE),length))
+
+# VENCIDO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_0_Vcdo,list(cut(Data_Buro$S_Ccons_0_Vcdo,c(-1,0,2494)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_.3_Vcdo,list(cut(Data_Buro$S_Ccons_.3_Vcdo,c(-1,0,966)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_.6_Vcdo,list(cut(Data_Buro$S_Ccons_.6_Vcdo,c(-1,0,1030)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_.9_Vcdo,list(cut(Data_Buro$S_Ccons_.9_Vcdo,c(-1,0,592)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_.12_Vcdo,list(cut(Data_Buro$S_Ccons_.12_Vcdo,c(-1,0,397)),Data_Buro$TIPO_CLIENTE),length))
+
+# CASTIGADO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_0_Cast,list(cut(Data_Buro$S_Ccons_0_Cast,c(-1,0,28)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_.3_Cast,list(cut(Data_Buro$S_Ccons_.3_Cast,c(-1,0,2066)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_.6_Cast,list(cut(Data_Buro$S_Ccons_.6_Cast,c(-1,0,2167)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_.9_Cast,list(cut(Data_Buro$S_Ccons_.9_Cast,c(-1,0,44)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_.12_Cast,list(cut(Data_Buro$S_Ccons_.12_Cast,c(-1,0,485)),Data_Buro$TIPO_CLIENTE),length))
+
+# DEMANDADO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_0_Dem,list(cut(Data_Buro$S_Ccons_0_Dem,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_.3_Dem,list(cut(Data_Buro$S_Ccons_.3_Dem,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_.6_Dem,list(cut(Data_Buro$S_Ccons_.6_Dem,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccons_.9_Dem,list(cut(Data_Buro$S_Ccons_.9_Dem,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)Dem
+    ftable(by(Data_Buro$S_Ccons_.12_Dem,list(cut(Data_Buro$S_Ccons_.12_Dem,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#SALDOS CARTERA COMERCIAL  
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+# POR VENCER (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_0_x_V,list(cut(Data_Buro$S_Ccome_0_x_V,c(-1,0,22540)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.3_x_V,list(cut(Data_Buro$S_Ccome_.3_x_V,c(-1,0,18560)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.6_x_V,list(cut(Data_Buro$S_Ccome_.6_x_V,c(-1,0,19270)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.9_x_V,list(cut(Data_Buro$S_Ccome_.9_x_V,c(-1,0,16170)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.12_x_V,list(cut(Data_Buro$S_Ccome_.12_x_V,c(-1,0,40600)),Data_Buro$TIPO_CLIENTE),length))
+
+  # VENCIDO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_0_Vcdo,list(cut(Data_Buro$S_Ccome_0_Vcdo,c(-1,0,27140)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.3_Vcdo,list(cut(Data_Buro$S_Ccome_.3_Vcdo,c(-1,0,27140)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.6_Vcdo,list(cut(Data_Buro$S_Ccome_.6_Vcdo,c(-1,0,120)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.9_Vcdo,list(cut(Data_Buro$S_Ccome_.9_Vcdo,c(-1,0,600)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.12_Vcdo,list(cut(Data_Buro$S_Ccome_.12_Vcdo,c(-1,0,27140)),Data_Buro$TIPO_CLIENTE),length))
+
+# CASTIGADO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_0_Cast,list(cut(Data_Buro$S_Ccome_0_Cast,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.3_Cast,list(cut(Data_Buro$S_Ccome_.3_Cast,c(-1,0,3)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.6_Cast,list(cut(Data_Buro$S_Ccome_.6_Cast,c(-1,0,3)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.9_Cast,list(cut(Data_Buro$S_Ccome_.9_Cast,c(-1,0,3)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.12_Cast,list(cut(Data_Buro$S_Ccome_.12_Cast,c(-1,0,3)),Data_Buro$TIPO_CLIENTE),length))
+
+# DEMANDADO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_0_Dem,list(cut(Data_Buro$S_Ccome_0_Dem,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.3_Dem,list(cut(Data_Buro$S_Ccome_.3_Dem,c(-1,0,3)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.6_Dem,list(cut(Data_Buro$S_Ccome_.6_Dem,c(-1,0,3)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ccome_.9_Dem,list(cut(Data_Buro$S_Ccome_.9_Dem,c(-1,0,3)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)Dem
+    ftable(by(Data_Buro$S_Ccome_.12_Dem,list(cut(Data_Buro$S_Ccome_.12_Dem,c(-1,0,3)),Data_Buro$TIPO_CLIENTE),length))
+
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#SALDOS CARTERA VIVIENDA  
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+# POR VENCER (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_0_x_V,list(cut(Data_Buro$S_Cvivi_0_x_V,c(-1,0,96510)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_.3_x_V,list(cut(Data_Buro$S_Cvivi_.3_x_V,c(-1,0,9794)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_.6_x_V,list(cut(Data_Buro$S_Cvivi_.6_x_V,c(-1,0,99490)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_.9_x_V,list(cut(Data_Buro$S_Cvivi_.9_x_V,c(-1,0,52100)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_.12_x_V,list(cut(Data_Buro$S_Cvivi_.12_x_V,c(-1,0,52460)),Data_Buro$TIPO_CLIENTE),length))
+
+# VENCIDO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_0_Vcdo,list(cut(Data_Buro$S_Cvivi_0_Vcdo,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_.3_Vcdo,list(cut(Data_Buro$S_Cvivi_.3_Vcdo,c(-1,0,255)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_.6_Vcdo,list(cut(Data_Buro$S_Cvivi_.6_Vcdo,c(-1,0,248)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_.9_Vcdo,list(cut(Data_Buro$S_Cvivi_.9_Vcdo,c(-1,0,241)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_.12_Vcdo,list(cut(Data_Buro$S_Cvivi_.12_Vcdo,c(-1,0,232)),Data_Buro$TIPO_CLIENTE),length))
+
+# CASTIGADO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_0_Cast,list(cut(Data_Buro$S_Cvivi_0_Cast,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_.3_Cast,list(cut(Data_Buro$S_Cvivi_.3_Cast,c(-1,0,6)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_.6_Cast,list(cut(Data_Buro$S_Cvivi_.6_Cast,c(-1,0,6)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_.9_Cast,list(cut(Data_Buro$S_Cvivi_.9_Cast,c(-1,0,6)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cvivi_.12_Cast,list(cut(Data_Buro$S_Cvivi_.12_Cast,c(-1,0,6)),Data_Buro$TIPO_CLIENTE),length))
+
+ # DEMANDADO (0,3,6,9 y 12 meses atrás)
+   # Calidad de la Información
+     #0: (NO PARTICIPA)
+     ftable(by(Data_Buro$S_Cvivi_0_Dem,list(cut(Data_Buro$S_Cvivi_0_Dem,c(-1,0,653)),Data_Buro$TIPO_CLIENTE),length))
+     #3: (NO PARTICIPA)
+     ftable(by(Data_Buro$S_Cvivi_.3_Dem,list(cut(Data_Buro$S_Cvivi_.3_Dem,c(-1,0,653)),Data_Buro$TIPO_CLIENTE),length))
+     #6: (NO PARTICIPA)
+     ftable(by(Data_Buro$S_Cvivi_.6_Dem,list(cut(Data_Buro$S_Cvivi_.6_Dem,c(-1,0,653)),Data_Buro$TIPO_CLIENTE),length))
+     #9: (NO PARTICIPA)
+     ftable(by(Data_Buro$S_Cvivi_.9_Dem,list(cut(Data_Buro$S_Cvivi_.9_Dem,c(-1,0,1962)),Data_Buro$TIPO_CLIENTE),length))
+     #12: (NO PARTICIPA)Dem
+     ftable(by(Data_Buro$S_Cvivi_.12_Dem,list(cut(Data_Buro$S_Cvivi_.12_Dem,c(-1,0,1962)),Data_Buro$TIPO_CLIENTE),length))
+
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#SALDOS CARTERA MICROCRÉDITO  
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+# POR VENCER (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_0_x_V,list(cut(Data_Buro$S_Cmicro_0_x_V,c(-1,0,1782)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_.3_x_V,list(cut(Data_Buro$S_Cmicro_.3_x_V,c(-1,0,19170)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_.6_x_V,list(cut(Data_Buro$S_Cmicro_.6_x_V,c(-1,0,20490)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_.9_x_V,list(cut(Data_Buro$S_Cmicro_.9_x_V,c(-1,0,21780)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_.12_x_V,list(cut(Data_Buro$S_Cmicro_.12_x_V,c(-1,0,23040)),Data_Buro$TIPO_CLIENTE),length))
+
+# VENCIDO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_0_Vcdo,list(cut(Data_Buro$S_Cmicro_0_Vcdo,c(-1,0,822)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_.3_Vcdo,list(cut(Data_Buro$S_Cmicro_.3_Vcdo,c(-1,0,881)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_.6_Vcdo,list(cut(Data_Buro$S_Cmicro_.6_Vcdo,c(-1,0,369)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_.9_Vcdo,list(cut(Data_Buro$S_Cmicro_.9_Vcdo,c(-1,0,636)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_.12_Vcdo,list(cut(Data_Buro$S_Cmicro_.12_Vcdo,c(-1,0,266)),Data_Buro$TIPO_CLIENTE),length))
+
+# CASTIGADO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_0_Cast,list(cut(Data_Buro$S_Cmicro_0_Cast,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_.3_Cast,list(cut(Data_Buro$S_Cmicro_.3_Cast,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_.6_Cast,list(cut(Data_Buro$S_Cmicro_.6_Cast,c(-1,0,111)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_.9_Cast,list(cut(Data_Buro$S_Cmicro_.9_Cast,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Cmicro_.12_Cast,list(cut(Data_Buro$S_Cmicro_.12_Cast,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+
+# DEMANDADO (0,3,6,9 y 12 meses atrás)
+   # Calidad de la Información
+     #0: (NO PARTICIPA)
+     ftable(by(Data_Buro$S_Cmicro_0_Dem,list(cut(Data_Buro$S_Cmicro_0_Dem,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+     #3: (NO PARTICIPA)
+     ftable(by(Data_Buro$S_Cmicro_.3_Dem,list(cut(Data_Buro$S_Cmicro_.3_Dem,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+     #6: (NO PARTICIPA)
+     ftable(by(Data_Buro$S_Cmicro_.6_Dem,list(cut(Data_Buro$S_Cmicro_.6_Dem,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+     #9: (NO PARTICIPA)
+     ftable(by(Data_Buro$S_Cmicro_.9_Dem,list(cut(Data_Buro$S_Cmicro_.9_Dem,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+     #12: (NO PARTICIPA)Dem
+     ftable(by(Data_Buro$S_Cmicro_.12_Dem,list(cut(Data_Buro$S_Cmicro_.12_Dem,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+
+#----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#SALDOS CARTERA DE TARJETA DE CRÉDITO  
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------- 
+# POR VENCER (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (PUEDE PARTICIPAR)
+    ftable(by(Data_Buro$S_Ctarjc_0_x_V,list(cut(Data_Buro$S_Ctarjc_0_x_V,c(-1,0,23370)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (PUEDE PARTICIPAR)
+    ftable(by(Data_Buro$S_Ctarjc_.3_x_V,list(cut(Data_Buro$S_Ctarjc_.3_x_V,c(-1,0,20090)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (PUEDE PARTICIPAR)
+    ftable(by(Data_Buro$S_Ctarjc_.6_x_V,list(cut(Data_Buro$S_Ctarjc_.6_x_V,c(-1,0,17070)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (PUEDE PARTICIPAR)
+    ftable(by(Data_Buro$S_Ctarjc_.9_x_V,list(cut(Data_Buro$S_Ctarjc_.9_x_V,c(-1,0,16920)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (PUEDE PARTICIPAR)
+    ftable(by(Data_Buro$S_Ctarjc_.12_x_V,list(cut(Data_Buro$S_Ctarjc_.12_x_V,c(-1,0,17520)),Data_Buro$TIPO_CLIENTE),length))
+
+# VENCIDO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_0_Vcdo,list(cut(Data_Buro$S_Ctarjc_0_Vcdo,c(-1,0,1074)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_.3_Vcdo,list(cut(Data_Buro$S_Ctarjc_.3_Vcdo,c(-1,0,2901)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_.6_Vcdo,list(cut(Data_Buro$S_Ctarjc_.6_Vcdo,c(-1,0,2095)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_.9_Vcdo,list(cut(Data_Buro$S_Ctarjc_.9_Vcdo,c(-1,0,3313)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_.12_Vcdo,list(cut(Data_Buro$S_Ctarjc_.12_Vcdo,c(-1,0,3757)),Data_Buro$TIPO_CLIENTE),length))
+
+# CASTIGADO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_0_Cast,list(cut(Data_Buro$S_Ctarjc_0_Cast,c(-1,0,4121)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_.3_Cast,list(cut(Data_Buro$S_Ctarjc_.3_Cast,c(-1,0,3048)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_.6_Cast,list(cut(Data_Buro$S_Ctarjc_.6_Cast,c(-1,0,4942)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_.9_Cast,list(cut(Data_Buro$S_Ctarjc_.9_Cast,c(-1,0,5142)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_.12_Cast,list(cut(Data_Buro$S_Ctarjc_.12_Cast,c(-1,0,5142)),Data_Buro$TIPO_CLIENTE),length))
+
+# DEMANDADO (0,3,6,9 y 12 meses atrás)
+  # Calidad de la Información
+    #0: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_0_Dem,list(cut(Data_Buro$S_Ctarjc_0_Dem,c(-1,0,1156)),Data_Buro$TIPO_CLIENTE),length))
+    #3: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_.3_Dem,list(cut(Data_Buro$S_Ctarjc_.3_Dem,c(-1,0,1073)),Data_Buro$TIPO_CLIENTE),length))
+    #6: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_.6_Dem,list(cut(Data_Buro$S_Ctarjc_.6_Dem,c(-1,0,1073)),Data_Buro$TIPO_CLIENTE),length))
+    #9: (NO PARTICIPA)
+    ftable(by(Data_Buro$S_Ctarjc_.9_Dem,list(cut(Data_Buro$S_Ctarjc_.9_Dem,c(-1,0,996)),Data_Buro$TIPO_CLIENTE),length))
+    #12: (NO PARTICIPA)Dem
+    ftable(by(Data_Buro$S_Ctarjc_.12_Dem,list(cut(Data_Buro$S_Ctarjc_.12_Dem,c(-1,0,1909)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#NÚMERO DE TARJETAS DE CRÉDITO ACTIVAS
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Número de Tarjetas de crédito activas: Hoy y 12 meses atrás
+  #0: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$N_TarjetaCA_0,list(cut(Data_Buro$N_TarjetaCA_0,c(-1,0,6)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$N_TarjetaCA_.12,list(cut(Data_Buro$N_TarjetaCA_.12,c(-1,0,7)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#NÚMERO DE CRÉDITOS DE CONSUMO
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Número de Créditos de Consumo: Hoy y 12 meses atrás
+  Data_Buro$N_Cconsumo_0[Data_Buro$N_Cconsumo_0>0]=Data_Buro$N_Cconsumo_0[Data_Buro$N_Cconsumo_0>0]-1
+  #0: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$N_Cconsumo_0,list(cut(Data_Buro$N_Cconsumo_0,c(-1,0,37)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$N_Cconsumo_.12,list(cut(Data_Buro$N_Cconsumo_.12,c(-1,0,45)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#NÚMERO DE CRÉDITOS DE COMERCIAL
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Número de Créditos de Comercial: Hoy y 12 meses atrás
+  #0: (NO PARTICIPA)
+  ftable(by(Data_Buro$N_Ccomercial_0,list(cut(Data_Buro$N_Ccomercial_0,c(-1,0,3)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (NO PARTICIPA)
+  ftable(by(Data_Buro$N_Ccomercial_.12,list(cut(Data_Buro$N_Ccomercial_.12,c(-1,0,2)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#NÚMERO DE CRÉDITOS DE VIVIENDA
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Número de Créditos de Vivienda: Hoy y 12 meses atrás
+  #0: (NO PARTICIPA)
+  ftable(by(Data_Buro$N_Cvivienda_0,list(cut(Data_Buro$N_Cvivienda_0,c(-1,0,2)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (NO PARTICIPA)
+  ftable(by(Data_Buro$N_Cvivienda_.12,list(cut(Data_Buro$N_Cvivienda_.12,c(-1,0,2)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#NÚMERO DE CRÉDITOS DE MICROCRÉDITO
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Número de Créditos de Microcrédito: Hoy y 12 meses atrás
+  #0: (NO PARTICIPA)
+  ftable(by(Data_Buro$N_Cmicrocre_0,list(cut(Data_Buro$N_Cmicrocre_0,c(-1,0,2)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (NO PARTICIPA)
+  ftable(by(Data_Buro$N_Cmicrocre_.12,list(cut(Data_Buro$N_Cmicrocre_.12,c(-1,0,3)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#PEOR CALIFICACIÓN DE TARJETAS DE CRÉDITO ACTIVAS
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Peor Calificación de Tarjetas de Crédito Activas: 0,3,6,9 y 12 meses atrás 
+  #0: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_TarjCA_0,Data_Buro$TIPO_CLIENTE)
+  #3: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_TarjCA_.3,Data_Buro$TIPO_CLIENTE)
+  #6: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_TarjCA_.6,Data_Buro$TIPO_CLIENTE)
+  #9: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_TarjCA_.9,Data_Buro$TIPO_CLIENTE)
+  #12: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_TarjCA_.12,Data_Buro$TIPO_CLIENTE)
+
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#PEOR CALIFICACIÓN DE CRÉDITOS DE CONSUMO
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Peor Calificación de Créditos de Consumo: 0,3,6,9 y 12 meses atrás 
+  #0: (PUEDE PARTICIPAR)
+  table(Data_Buro$P_Cali_Ccons_0,Data_Buro$TIPO_CLIENTE)
+  #3: (PUEDE PARTICIPAR)
+  table(Data_Buro$P_Cali_Ccons_.3,Data_Buro$TIPO_CLIENTE)
+  #6: (PUEDE PARTICIPAR)
+  table(Data_Buro$P_Cali_Ccons_.6,Data_Buro$TIPO_CLIENTE)
+  #9: (PUEDE PARTICIPAR)
+  table(Data_Buro$P_Cali_Ccons_.9,Data_Buro$TIPO_CLIENTE)
+  #12: (PUEDE PARTICIPAR)
+  table(Data_Buro$P_Cali_Ccons_.12,Data_Buro$TIPO_CLIENTE)
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#PEOR CALIFICACIÓN DE CRÉDITOS COMERCIAL
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Peor Calificación de Créditos Comercial: 0,3,6,9 y 12 meses atrás 
+  #0: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Ccome_0,Data_Buro$TIPO_CLIENTE)
+  #3: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Ccome_.3,Data_Buro$TIPO_CLIENTE)
+  #6: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Ccome_.6,Data_Buro$TIPO_CLIENTE)
+  #9: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Ccome_.9,Data_Buro$TIPO_CLIENTE)
+  #12: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Ccome_.12,Data_Buro$TIPO_CLIENTE)
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#PEOR CALIFICACIÓN DE CRÉDITOS DE VIVIENDA
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Peor Calificación de Créditos de Vivienda: 0,3,6,9 y 12 meses atrás 
+  #0: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Cvivi_0,Data_Buro$TIPO_CLIENTE)
+  #3: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Cvivi_.3,Data_Buro$TIPO_CLIENTE)
+  #6: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Cvivi_.6,Data_Buro$TIPO_CLIENTE)
+  #9: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Cvivi_.9,Data_Buro$TIPO_CLIENTE)
+  #12: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Cvivi_.12,Data_Buro$TIPO_CLIENTE)
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#PEOR CALIFICACIÓN DE CRÉDITOS DE MICROCRÉDITO
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Peor Calificación de Créditos de Microcrédito: 0,3,6,9 y 12 meses atrás 
+  #0: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Cmicro_0,Data_Buro$TIPO_CLIENTE)
+  #3: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Cmicro_.3,Data_Buro$TIPO_CLIENTE)
+  #6: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Cmicro_.6,Data_Buro$TIPO_CLIENTE)
+  #9: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Cmicro_.9,Data_Buro$TIPO_CLIENTE)
+  #12: (NO PARTICIPA)
+  table(Data_Buro$P_Cali_Cmicro_.12,Data_Buro$TIPO_CLIENTE)
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#SALDO SECTOR FINANCIERO
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Saldo Sector Financiero: 0,3,6,9 y 12 meses atrás
+  Data_Buro$SALDO_SF_0[Data_Buro$SALDO_SF_0>=Data_Buro$MONTO]=Data_Buro$SALDO_SF_0[Data_Buro$SALDO_SF_0>=Data_Buro$MONTO]-Data_Buro$MONTO[Data_Buro$SALDO_SF_0>=Data_Buro$MONTO]
+  #0: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$SALDO_SF_0,list(cut(Data_Buro$SALDO_SF_0,c(-1,0,96570)),Data_Buro$TIPO_CLIENTE),length))
+  #3: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$SALDO_SF_.3,list(cut(Data_Buro$SALDO_SF_.3,c(-1,0,97940)),Data_Buro$TIPO_CLIENTE),length))
+  #6: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$SALDO_SF_.6,list(cut(Data_Buro$SALDO_SF_.6,c(-1,0,99650)),Data_Buro$TIPO_CLIENTE),length))
+  #9: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$SALDO_SF_.9,list(cut(Data_Buro$SALDO_SF_.9,c(-1,0,74460)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$SALDO_SF_.12,list(cut(Data_Buro$SALDO_SF_.12,c(-1,0,81370)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#SALDO SECTOR REAL
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Saldo Sector Real: 0,3,6,9 y 12 meses atrás
+  #0: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$SALDO_SR_0,list(cut(Data_Buro$SALDO_SR_0,c(-1,0,1206)),Data_Buro$TIPO_CLIENTE),length))
+  #3: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$SALDO_SR_.3,list(cut(Data_Buro$SALDO_SR_.3,c(-1,0,1080)),Data_Buro$TIPO_CLIENTE),length))
+  #6: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$SALDO_SR_.6,list(cut(Data_Buro$SALDO_SR_.6,c(-1,0,1089)),Data_Buro$TIPO_CLIENTE),length))
+  #9: (NO PARTICIPA)
+  ftable(by(Data_Buro$SALDO_SR_.9,list(cut(Data_Buro$SALDO_SR_.9,c(-1,0,1038)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (NO PARTICIPA)
+  ftable(by(Data_Buro$SALDO_SR_.12,list(cut(Data_Buro$SALDO_SR_.12,c(-1,0,1105)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#SALDO SECTOR CELULAR
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Saldo Sector Celular: 0,3,6,9 y 12 meses atrás
+  #0: (NO PARTICIPA)
+  ftable(by(Data_Buro$SALDO_SC_0,list(cut(Data_Buro$SALDO_SC_0,c(-1,0,18690)),Data_Buro$TIPO_CLIENTE),length))
+  #3: (NO PARTICIPA)
+  ftable(by(Data_Buro$SALDO_SC_.3,list(cut(Data_Buro$SALDO_SC_.3,c(-1,0,58)),Data_Buro$TIPO_CLIENTE),length))
+  #6: (NO PARTICIPA)
+  ftable(by(Data_Buro$SALDO_SC_.6,list(cut(Data_Buro$SALDO_SC_.6,c(-1,0,84)),Data_Buro$TIPO_CLIENTE),length))
+  #9: (NO PARTICIPA)
+  ftable(by(Data_Buro$SALDO_SC_.9,list(cut(Data_Buro$SALDO_SC_.9,c(-1,0,743)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (NO PARTICIPA)
+  ftable(by(Data_Buro$SALDO_SC_.12,list(cut(Data_Buro$SALDO_SC_.12,c(-1,0,430)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#SALDO SECTOR COOPERATIVO
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Saldo Sector Cooperativo: 0,3,6,9 y 12 meses atrás
+  #0: (NO PARTICIPA)
+  ftable(by(Data_Buro$SALDO_SCoop_0,list(cut(Data_Buro$SALDO_SCoop_0,c(-1,0,18690)),Data_Buro$TIPO_CLIENTE),length))
+  #3: (NO PARTICIPA)
+  ftable(by(Data_Buro$SALDO_SCoop_.3,list(cut(Data_Buro$SALDO_SCoop_.3,c(-1,0,58)),Data_Buro$TIPO_CLIENTE),length))
+  #6: (NO PARTICIPA)
+  ftable(by(Data_Buro$SALDO_SCoop_.6,list(cut(Data_Buro$SALDO_SCoop_.6,c(-1,0,84)),Data_Buro$TIPO_CLIENTE),length))
+  #9: (NO PARTICIPA)
+  ftable(by(Data_Buro$SALDO_SCoop_.9,list(cut(Data_Buro$SALDO_SCoop_.9,c(-1,0,743)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (NO PARTICIPA)
+  ftable(by(Data_Buro$SALDO_SCoop_.12,list(cut(Data_Buro$SALDO_SCoop_.12,c(-1,0,430)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#CUOTAS SECTOR FINANCIERO
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Cuotas Sector Financiero: Hoy y 12 meses atrás
+  #0: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$CUOTAS_SF_0,list(cut(Data_Buro$CUOTAS_SF_0,c(-1,0,6834)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$CUOTAS_SF_.12,list(cut(Data_Buro$CUOTAS_SF_.12,c(-1,0,12060)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#CUOTAS TARJETAS DE CRÉDITO
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Cuotas Tarjetas de Crédito: Hoy y 12 meses atrás
+  #0: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$CUOTAS_TC_0,list(cut(Data_Buro$CUOTAS_TC_0,c(-1,0,18030)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$CUOTAS_TC_.12,list(cut(Data_Buro$CUOTAS_TC_.12,c(-1,0,17950)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#CUPOS TARJETAS DE CRÉDITO
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Cupos Tarjetas de Crédito: Hoy y 12 meses atrás
+  #0: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$CUPOS_TC_0,list(cut(Data_Buro$CUPOS_TC_0,c(-1,0,1407000)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$CUPOS_TC_.12,list(cut(Data_Buro$CUPOS_TC_.12,c(-1,0,1407000)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#NÚMERO DE OPERACIONES SECTOR FINANCIERO
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Número de Operaciones Sector Financiero: Hoy y 12 meses atrás
+  Data_Buro$N_Operac_SF_0[Data_Buro$N_Operac_SF_0>0]=Data_Buro$N_Operac_SF_0[Data_Buro$N_Operac_SF_0>0]-1
+  #0: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$N_Operac_SF_0,list(cut(Data_Buro$N_Operac_SF_0,c(-1,0,9)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$N_Operac_SF_.12,list(cut(Data_Buro$N_Operac_SF_.12,c(-1,0,10)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#NÚMERO DE OPERACIONES SECTOR REAL
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Número de Operaciones Sector Real: Hoy y 12 meses atrás
+  #0: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$N_Operac_SR_0,list(cut(Data_Buro$N_Operac_SR_0,c(-1,0,5)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$N_Operac_SR_.12,list(cut(Data_Buro$N_Operac_SR_.12,c(-1,0,8)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#NÚMERO DE OPERACIONES SECTOR CELULAR
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Número de Operaciones Sector Celular: Hoy y 12 meses atrás
+  #0: (NO PARTICIPA)
+  ftable(by(Data_Buro$N_Operac_SC_0,list(cut(Data_Buro$N_Operac_SC_0,c(-1,0,8)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (NO PARTICIPA)
+  ftable(by(Data_Buro$N_Operac_SC_.12,list(cut(Data_Buro$N_Operac_SC_.12,c(-1,0,9)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#NÚMERO DE OPERACIONES SECTOR COOPERATIVO
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Número de Operaciones Sector Real: Hoy y 12 meses atrás
+  #0: (NO PARTICIPA)
+  ftable(by(Data_Buro$N_Operac_SCoop_0,list(cut(Data_Buro$N_Operac_SCoop_0,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (NO PARTICIPA)
+  ftable(by(Data_Buro$N_Operac_SCoop_.12,list(cut(Data_Buro$N_Operac_SCoop_.12,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#ESTADO DE CARTERA ACTUAL
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Estado de la Cartera Actual: Obligaciones al día; Obligaciones Mora: 30,60,90 y 120; Cartera Castigada y Dudoso Recaudado
+  #Obligaciones al día: (PUEDE PARTICIPAR)
+  Data_Buro$CA_Obligac_M0[Data_Buro$CA_Obligac_M0>0]=Data_Buro$CA_Obligac_M0[Data_Buro$CA_Obligac_M0>0]-1
+  ftable(by(Data_Buro$CA_Obligac_M0,list(cut(Data_Buro$CA_Obligac_M0,c(-1,0,40)),Data_Buro$TIPO_CLIENTE),length))  
+  #30: (NO PARTICIPA)
+  ftable(by(Data_Buro$CA_Obligac_M30,list(cut(Data_Buro$CA_Obligac_M30,c(-1,0,3)),Data_Buro$TIPO_CLIENTE),length))
+  #60: (NO PARTICIPA)
+  ftable(by(Data_Buro$CA_Obligac_M60,list(cut(Data_Buro$CA_Obligac_M60,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+  #90: (NO PARTICIPA)
+  ftable(by(Data_Buro$CA_Obligac_M90,list(cut(Data_Buro$CA_Obligac_M90,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+  #120: (NO PARTICIPA)
+  ftable(by(Data_Buro$CA_Obligac_M120,list(cut(Data_Buro$CA_Obligac_M120,c(-1,0,4)),Data_Buro$TIPO_CLIENTE),length))
+  #Cartera Castigada: (NO PARTICIPA)
+  ftable(by(Data_Buro$CA_Castigada,list(cut(Data_Buro$CA_Castigada,c(-1,0,3)),Data_Buro$TIPO_CLIENTE),length))
+  #Dudosos Recaudado: (NO PARTICIPA)
+  ftable(by(Data_Buro$CA_DudosoR,list(cut(Data_Buro$CA_DudosoR,c(-1,0,2)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#ESTADO DE CARTERA HISTÓRICO
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Estado de la Cartera Histórica: Último año moras: 30,60,90 y 120; Canceladas Mal Manejo y Cartera Recuperada
+  #30: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$CH_UltimoA_M30,list(cut(Data_Buro$CH_UltimoA_M30,c(-1,0,51)),Data_Buro$TIPO_CLIENTE),length))
+  #60: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$CH_UltimoA_M60,list(cut(Data_Buro$CH_UltimoA_M60,c(-1,0,51)),Data_Buro$TIPO_CLIENTE),length))
+  #90: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$CH_UltimoA_M90,list(cut(Data_Buro$CH_UltimoA_M90,c(-1,0,34)),Data_Buro$TIPO_CLIENTE),length))
+  #120: (PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$CH_UltimoA_M120,list(cut(Data_Buro$CH_UltimoA_M120,c(-1,0,98)),Data_Buro$TIPO_CLIENTE),length))
+  #Mal manejo (NO PARTICIPA)
+  ftable(by(Data_Buro$CH_Cancelada,list(cut(Data_Buro$CH_Cancelada,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+  #Cartera Recuperada (NO PARTICIPA)
+  ftable(by(Data_Buro$CH_CarteraR,list(cut(Data_Buro$CH_CarteraR,c(-1,0,5)),Data_Buro$TIPO_CLIENTE),length))
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#VARIABLES CONSTRUIDAS (A partir de las variables "PUEDE PARTICIPAR")
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+########## Morosidad Cartera Consumo ##########
+  Data_Buro$Morosidad_SC0=Data_Buro$S_Ccons_0_Vcdo/(Data_Buro$S_Ccons_0_x_V+Data_Buro$S_Ccons_0_Vcdo)
+  #0: (NO PARTICIPA)
+  ftable(by(Data_Buro$Morosidad_SC0,list(cut(Data_Buro$Morosidad_SC0,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+  Data_Buro$Morosidad_SC3=Data_Buro$S_Ccons_.3_Vcdo/(Data_Buro$S_Ccons_.3_x_V+Data_Buro$S_Ccons_.3_Vcdo)
+  #3: (NO PARTICIPA)
+  ftable(by(Data_Buro$Morosidad_SC3,list(cut(Data_Buro$Morosidad_SC3,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+  Data_Buro$Morosidad_SC6=Data_Buro$S_Ccons_.6_Vcdo/(Data_Buro$S_Ccons_.6_x_V+Data_Buro$S_Ccons_.6_Vcdo)
+  #6: (NO PARTICIPA)
+  ftable(by(Data_Buro$Morosidad_SC6,list(cut(Data_Buro$Morosidad_SC6,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+  Data_Buro$Morosidad_SC9=Data_Buro$S_Ccons_.9_Vcdo/(Data_Buro$S_Ccons_.9_x_V+Data_Buro$S_Ccons_.9_Vcdo)
+  #9: (NO PARTICIPA)
+  ftable(by(Data_Buro$Morosidad_SC9,list(cut(Data_Buro$Morosidad_SC9,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+  Data_Buro$Morosidad_SC12=Data_Buro$S_Ccons_.12_Vcdo/(Data_Buro$S_Ccons_.12_x_V+Data_Buro$S_Ccons_.12_Vcdo)
+  #12: (NO PARTICIPA)
+  ftable(by(Data_Buro$Morosidad_SC12,list(cut(Data_Buro$Morosidad_SC12,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Morosidad Cartera Tarjetas de Crédito ##########
+  Data_Buro$Morosidad_TC0=Data_Buro$S_Ctarjc_0_Vcdo/(Data_Buro$S_Ctarjc_0_x_V+Data_Buro$S_Ctarjc_0_Vcdo)
+  #0: (NO PARTICIPA)
+  ftable(by(Data_Buro$Morosidad_TC0,list(cut(Data_Buro$Morosidad_TC0,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+  Data_Buro$Morosidad_TC3=Data_Buro$S_Ctarjc_.3_Vcdo/(Data_Buro$S_Ctarjc_.3_x_V+Data_Buro$S_Ctarjc_.3_Vcdo)
+  #3: (NO PARTICIPA)
+  ftable(by(Data_Buro$Morosidad_TC3,list(cut(Data_Buro$Morosidad_TC3,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+  Data_Buro$Morosidad_TC6=Data_Buro$S_Ctarjc_.6_Vcdo/(Data_Buro$S_Ctarjc_.6_x_V+Data_Buro$S_Ctarjc_.6_Vcdo)
+  #6: (NO PARTICIPA)
+  ftable(by(Data_Buro$Morosidad_TC6,list(cut(Data_Buro$Morosidad_TC6,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+  Data_Buro$Morosidad_TC9=Data_Buro$S_Ctarjc_.9_Vcdo/(Data_Buro$S_Ctarjc_.9_x_V+Data_Buro$S_Ctarjc_.9_Vcdo)
+  #9: (NO PARTICIPA)
+  ftable(by(Data_Buro$Morosidad_TC9,list(cut(Data_Buro$Morosidad_TC9,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+  Data_Buro$Morosidad_TC12=Data_Buro$S_Ctarjc_.12_Vcdo/(Data_Buro$S_Ctarjc_.12_x_V+Data_Buro$S_Ctarjc_.12_Vcdo)
+  #12: (NO PARTICIPA)
+  ftable(by(Data_Buro$Morosidad_TC12,list(cut(Data_Buro$Morosidad_TC12,c(-1,0,1)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Variación Número de Tarjetas de Crédito Activas ##########
+  #(PUEDE PARTICIPAR)
+  Data_Buro$VN_TarjetaCA_12 = Data_Buro$N_TarjetaCA_0 - Data_Buro$N_TarjetaCA_.12
+  ftable(by(Data_Buro$VN_TarjetaCA_12,list(cut(Data_Buro$VN_TarjetaCA_12,c(-1,0,4)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Variación Número de Créditos de Consumo ##########
+  #(PUEDE PARTICIPAR)
+  Data_Buro$VN_Cconsumo_12 = Data_Buro$N_Cconsumo_0 - Data_Buro$N_Cconsumo_.12
+  ftable(by(Data_Buro$VN_Cconsumo_12,list(cut(Data_Buro$VN_Cconsumo_12,c(-1,0,36)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Variación Saldo Sector Financiero respecto a Acreditación ###########
+  #3: 
+  Data_Buro$VSALDO_SF3=(Data_Buro$SALDO_SF_0-Data_Buro$SALDO_SF_.3)
+  #6: 
+  Data_Buro$VSALDO_SF6=(Data_Buro$SALDO_SF_0-Data_Buro$SALDO_SF_.6)
+  #9: 
+  Data_Buro$VSALDO_SF9=(Data_Buro$SALDO_SF_0-Data_Buro$SALDO_SF_.9)
+  #12: 
+  Data_Buro$VSALDO_SF12=(Data_Buro$SALDO_SF_0-Data_Buro$SALDO_SF_.12)
+
+########## Variación Saldo Sector Real respecto a Acreditación ##########
+  #3: 
+  Data_Buro$VSALDO_SR3=(Data_Buro$SALDO_SR_0-Data_Buro$SALDO_SR_.3)
+  #6: 
+  Data_Buro$VSALDO_SR6=(Data_Buro$SALDO_SR_0-Data_Buro$SALDO_SR_.6)
+  
+########## Tasa de Variación Saldo Sector Financiero respecto a Acreditación ##########
+  #3: (PUEDE PARTICIPAR)
+  Data_Buro$TVSALDO_SF3=(Data_Buro$SALDO_SF_0-Data_Buro$SALDO_SF_.3)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVSALDO_SF3,list(cut(Data_Buro$TVSALDO_SF3,c(-1,0,105)),Data_Buro$TIPO_CLIENTE),length))
+  #6: (PUEDE PARTICIPAR)
+  Data_Buro$TVSALDO_SF6=(Data_Buro$SALDO_SF_0-Data_Buro$SALDO_SF_.6)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVSALDO_SF6,list(cut(Data_Buro$TVSALDO_SF6,c(-1,0,107)),Data_Buro$TIPO_CLIENTE),length))
+  #9: (PUEDE PARTICIPAR)
+  Data_Buro$TVSALDO_SF9=(Data_Buro$SALDO_SF_0-Data_Buro$SALDO_SF_.9)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVSALDO_SF9,list(cut(Data_Buro$TVSALDO_SF9,c(-1,0,112.4)),Data_Buro$TIPO_CLIENTE),length))
+  #12: (PUEDE PARTICIPAR)
+  Data_Buro$TVSALDO_SF12=(Data_Buro$SALDO_SF_0-Data_Buro$SALDO_SF_.12)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVSALDO_SF12,list(cut(Data_Buro$TVSALDO_SF12,c(-1,0,107.7)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Tasa de Variación Cuotas Sector Financiero respecto a Acreditación ##########
+  #(PUEDE PARTICIPAR)
+  Data_Buro$TVCUOTAS_SF12=(Data_Buro$CUOTAS_SF_0-Data_Buro$CUOTAS_SF_.12)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVCUOTAS_SF12,list(cut(Data_Buro$TVCUOTAS_SF12,c(-1,0,8.49)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Tasa de Variación Cuotas de Tarjeta de Crédito respecto a Acreditación ##########
+  #(PUEDE PARTICIPAR)
+  Data_Buro$TVCUOTAS_TC12=(Data_Buro$CUOTAS_TC_0-Data_Buro$CUOTAS_TC_.12)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVCUOTAS_TC12,list(cut(Data_Buro$TVCUOTAS_TC12,c(-1,0,6.954)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Tasa de Variación Cupos de Tarjeta de Crédito respecto a Acreditación ##########
+  #(PUEDE PARTICIPAR)
+  Data_Buro$TVCUPO_TC12=(Data_Buro$CUPOS_TC_0-Data_Buro$CUPOS_TC_.12)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVCUPO_TC12,list(cut(Data_Buro$TVCUPO_TC12,c(-1,0,45.45)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Tasa de Variación Cuota Total (Cuotas Sector Financiero + Cuotas Tarjetas de Crédito) ##########
+  Data_Buro$CUOTAST_0=Data_Buro$CUOTAS_SF_0+Data_Buro$CUOTAS_TC_0
+  Data_Buro$CUOTAST_12=Data_Buro$CUOTAS_SF_.12+Data_Buro$CUOTAS_TC_.12
+  Data_Buro$TVCUOTA_T12=(Data_Buro$CUOTAST_0-Data_Buro$CUOTAST_12)/Data_Buro$ACRED
+  #(PUEDE PARTICIPAR)
+  ftable(by(Data_Buro$TVCUOTA_T12,list(cut(Data_Buro$TVCUOTA_T12,c(-1,0,8.49)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Variación Número de Operaciones Sector Financiero ##########
+  #(PUEDE PARTICIPAR)
+  Data_Buro$VN_OperaSF_12=Data_Buro$N_Operac_SF_0-Data_Buro$N_Operac_SF_.12
+  ftable(by(Data_Buro$VN_OperaSF_12,list(cut(Data_Buro$VN_OperaSF_12,c(-1,0,5)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Variación Número de Operaciones Sector Real ##########
+  #(PUEDE PARTICIPAR)
+  Data_Buro$VN_OperaSR_12=Data_Buro$N_Operac_SR_0-Data_Buro$N_Operac_SR_.12
+  ftable(by(Data_Buro$VN_OperaSR_12,list(cut(Data_Buro$VN_OperaSR_12,c(-1,0,2)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Variación Número de Operaciones Sector Celular ##########
+  #(PUEDE PARTICIPAR)
+  Data_Buro$VN_OperaSC_12=Data_Buro$N_Operac_SC_0-Data_Buro$N_Operac_SC_.12
+  ftable(by(Data_Buro$VN_OperaSC_12,list(cut(Data_Buro$VN_OperaSC_12,c(-1,0,4)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Número Obligaciones en Mora Durante el Último Año al Momento de Solicitar el Crédito ##########  
+  #(PUEDE PARTICIPAR)
+  Data_Buro$ObligaT_CH=Data_Buro$CH_UltimoA_M30+Data_Buro$CH_UltimoA_M60+Data_Buro$CH_UltimoA_M90
+  ftable(by(Data_Buro$VN_OperaSC,list(cut(Data_Buro$VN_OperaSC,c(-1,0,154)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Número Obligaciones en Mora al Momento de Solicitar el Crédito ##########  
+  #(PUEDE PARTICIPAR)
+  Data_Buro$ObligaT_CA=Data_Buro$CA_Obligac_M30+Data_Buro$CA_Obligac_M60+Data_Buro$CA_Obligac_M90+Data_Buro$CA_Obligac_M120
+  ftable(by(Data_Buro$ObligaT_CA,list(cut(Data_Buro$ObligaT_CA,c(-1,0,4)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Tasa de Variación del Saldo Total en la Cartera de Consumo respecto a Acreditación ##########
+  Data_Buro$SaldoT_Ccons0 = Data_Buro$S_Ccons_0_x_V + Data_Buro$S_Ccons_0_Vcdo
+  Data_Buro$SaldoT_Ccons3 = Data_Buro$S_Ccons_.3_x_V + Data_Buro$S_Ccons_.3_Vcdo
+  Data_Buro$SaldoT_Ccons6 = Data_Buro$S_Ccons_.6_x_V + Data_Buro$S_Ccons_.6_Vcdo
+  Data_Buro$SaldoT_Ccons9 = Data_Buro$S_Ccons_.9_x_V + Data_Buro$S_Ccons_.9_Vcdo
+  Data_Buro$SaldoT_Ccons12 = Data_Buro$S_Ccons_.12_x_V + Data_Buro$S_Ccons_.12_Vcdo
+
+  #3:(PUEDE PARTICIPAR)
+  Data_Buro$TVSaldoT_Ccons3 = (Data_Buro$SaldoT_Ccons0 - Data_Buro$SaldoT_Ccons3)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVSaldoT_Ccons3,list(cut(Data_Buro$TVSaldoT_Ccons3,c(-1,0,125)),Data_Buro$TIPO_CLIENTE),length))
+  #6:(PUEDE PARTICIPAR)
+  Data_Buro$TVSaldoT_Ccons6 = (Data_Buro$SaldoT_Ccons0 - Data_Buro$SaldoT_Ccons6)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVSaldoT_Ccons6,list(cut(Data_Buro$TVSaldoT_Ccons6,c(-1,0,125)),Data_Buro$TIPO_CLIENTE),length))
+  #9:(PUEDE PARTICIPAR)
+  Data_Buro$TVSaldoT_Ccons9 = (Data_Buro$SaldoT_Ccons0 - Data_Buro$SaldoT_Ccons9)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVSaldoT_Ccons9,list(cut(Data_Buro$TVSaldoT_Ccons9,c(-1,0,125)),Data_Buro$TIPO_CLIENTE),length))
+  #12:(PUEDE PARTICIPAR)
+  Data_Buro$TVSaldoT_Ccons12 = (Data_Buro$SaldoT_Ccons0 - Data_Buro$SaldoT_Ccons12)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVSaldoT_Ccons12,list(cut(Data_Buro$TVSaldoT_Ccons12,c(-1,0,125)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Tasa de Variación del Saldo Total en la Cartera de Tarjetas de Crédito respecto a Acreditación ##########
+  Data_Buro$SaldoT_Ctarjc0 = Data_Buro$S_Ctarjc_0_x_V + Data_Buro$S_Ctarjc_0_Vcdo
+  Data_Buro$SaldoT_Ctarjc3 = Data_Buro$S_Ctarjc_.3_x_V + Data_Buro$S_Ctarjc_.3_Vcdo
+  Data_Buro$SaldoT_Ctarjc6 = Data_Buro$S_Ctarjc_.6_x_V + Data_Buro$S_Ctarjc_.6_Vcdo
+  Data_Buro$SaldoT_Ctarjc9 = Data_Buro$S_Ctarjc_.9_x_V + Data_Buro$S_Ctarjc_.9_Vcdo
+  Data_Buro$SaldoT_Ctarjc12 = Data_Buro$S_Ctarjc_.12_x_V + Data_Buro$S_Ctarjc_.12_Vcdo
+
+  #3:(PUEDE PARTICIPAR)
+  Data_Buro$TVSaldoT_Ctarjc3 = (Data_Buro$SaldoT_Ctarjc0 - Data_Buro$SaldoT_Ctarjc3)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVSaldoT_Ctarjc3,list(cut(Data_Buro$TVSaldoT_Ctarjc3,c(-1,0,15)),Data_Buro$TIPO_CLIENTE),length))
+  #6:(PUEDE PARTICIPAR)
+  Data_Buro$TVSaldoT_Ctarjc6 = (Data_Buro$SaldoT_Ctarjc0 - Data_Buro$SaldoT_Ctarjc6)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVSaldoT_Ctarjc6,list(cut(Data_Buro$TVSaldoT_Ctarjc6,c(-1,0,15)),Data_Buro$TIPO_CLIENTE),length))
+  #9:(PUEDE PARTICIPAR)
+  Data_Buro$TVSaldoT_Ctarjc9 = (Data_Buro$SaldoT_Ctarjc0 - Data_Buro$SaldoT_Ctarjc9)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVSaldoT_Ctarjc9,list(cut(Data_Buro$TVSaldoT_Ctarjc9,c(-1,0,15)),Data_Buro$TIPO_CLIENTE),length))
+  #12:(PUEDE PARTICIPAR)
+  Data_Buro$TVSaldoT_Ctarjc12 = (Data_Buro$SaldoT_Ctarjc0 - Data_Buro$SaldoT_Ctarjc12)/Data_Buro$ACRED
+  ftable(by(Data_Buro$TVSaldoT_Ctarjc12,list(cut(Data_Buro$TVSaldoT_Ctarjc12,c(-1,0,15)),Data_Buro$TIPO_CLIENTE),length))
+
+########## Indicatriz Saldo Sector Financiero ##########
+  #0:
+  Data_Buro$I_SaldoSF_0 = 0
+  Data_Buro$I_SaldoSF_0[Data_Buro$SALDO_SF_0>0]=1
+  #3:
+  Data_Buro$I_SaldoSF_.3 = 0
+  Data_Buro$I_SaldoSF_.3[Data_Buro$SALDO_SF_.3>0]=1
+  #6:
+  Data_Buro$I_SaldoSF_.6 = 0
+  Data_Buro$I_SaldoSF_.6[Data_Buro$SALDO_SF_.6>0]=1
+  #9:
+  Data_Buro$I_SaldoSF_.9 = 0
+  Data_Buro$I_SaldoSF_.9[Data_Buro$SALDO_SF_.9>0]=1
+  #12:
+  Data_Buro$I_SaldoSF_.12 = 0
+  Data_Buro$I_SaldoSF_.12[Data_Buro$SALDO_SF_.12>0]=1
+
+########## Indicatriz Saldo Sector Real ##########
+  #0:
+  Data_Buro$I_SaldoSR_0 = 0
+  Data_Buro$I_SaldoSR_0[Data_Buro$SALDO_SR_0>0]=1
+
+########## Indicatriz Estado Cartera Actual ##########
+  #M0:
+  Data_Buro$I_ObligacCA_0 = 0
+  Data_Buro$I_ObligacCA_0[Data_Buro$CA_Obligac_M0>0]=1
+
+########## Indicatriz Estado Cartera Histórico ##########
+  #M30:
+  Data_Buro$I_ObligacCH_30 = 0
+  Data_Buro$I_ObligacCH_30[Data_Buro$CH_UltimoA_M30>0]=1
+  #M60:
+  Data_Buro$I_ObligacCH_60 = 0
+  Data_Buro$I_ObligacCH_60[Data_Buro$CH_UltimoA_M60>0]=1
+  #M90:
+  Data_Buro$I_ObligacCH_90 = 0
+  Data_Buro$I_ObligacCH_90[Data_Buro$CH_UltimoA_M90>0]=1
+  #M120:
+  Data_Buro$I_ObligacCH_120 = 0
+  Data_Buro$I_ObligacCH_120[Data_Buro$CH_UltimoA_M120>0]=1
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+  Data_Buro$P_Cali_Ccons_.3=as.character(Data_Buro$P_Cali_Ccons_.3)
+  Data_Buro$P_Cali_Ccons_.3[Data_Buro$P_Cali_Ccons_.3==" "]="No Dispone"
+  Data_Buro$P_Cali_Ccons_.3=as.factor(Data_Buro$P_Cali_Ccons_.3)
+  Data_Buro$P_Cali_Ccons_.6=as.character(Data_Buro$P_Cali_Ccons_.6)
+  Data_Buro$P_Cali_Ccons_.6[Data_Buro$P_Cali_Ccons_.6==" "]="No Dispone"
+  Data_Buro$P_Cali_Ccons_.6=as.factor(Data_Buro$P_Cali_Ccons_.6)
+  Data_Buro$P_Cali_Ccons_.9=as.character(Data_Buro$P_Cali_Ccons_.9)
+  Data_Buro$P_Cali_Ccons_.9[Data_Buro$P_Cali_Ccons_.9==" "]="No Dispone"
+  Data_Buro$P_Cali_Ccons_.9=as.factor(Data_Buro$P_Cali_Ccons_.9)
+  Data_Buro$P_Cali_Ccons_.12=as.character(Data_Buro$P_Cali_Ccons_.12)
+  Data_Buro$P_Cali_Ccons_.12[Data_Buro$P_Cali_Ccons_.12==" "]="No Dispone"
+  Data_Buro$P_Cali_Ccons_.12=as.factor(Data_Buro$P_Cali_Ccons_.12)
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ 
+  Data_Buro_Es=Data_Buro[c("CEDULA","S_Ccons_0_x_V","S_Ccons_.3_x_V","S_Ccons_.6_x_V","S_Ccons_.9_x_V","S_Ccons_.12_x_V","S_Ctarjc_0_x_V","S_Ctarjc_.3_x_V","S_Ctarjc_.6_x_V","S_Ctarjc_.9_x_V","S_Ctarjc_.12_x_V","N_TarjetaCA_0","N_TarjetaCA_.12","N_Cconsumo_0","N_Cconsumo_.12","P_Cali_Ccons_0","P_Cali_Ccons_.3","P_Cali_Ccons_.6","P_Cali_Ccons_.9","P_Cali_Ccons_.12","SALDO_SF_0","SALDO_SF_.3","SALDO_SF_.6","SALDO_SF_.9","SALDO_SF_.12","VSALDO_SF3","VSALDO_SF6","SALDO_SR_0","SALDO_SR_.3","SALDO_SR_.6","VSALDO_SR3","VSALDO_SR6","CUOTAS_SF_0","CUOTAS_SF_.12","TVCUPO_TC12","CUOTAS_TC_0","CUOTAS_TC_.12","CUPOS_TC_0","CUPOS_TC_.12","N_Operac_SF_0","N_Operac_SF_.12","N_Operac_SR_0","N_Operac_SR_.12","N_Operac_SC_0","N_Operac_SC_.12","CA_Obligac_M0","CH_UltimoA_M30","CH_UltimoA_M60","CH_UltimoA_M90","CH_UltimoA_M120","ICALIF","VN_TarjetaCA_12","VN_Cconsumo_12","TVSALDO_SF3","TVSALDO_SF6","TVSALDO_SF9","TVSALDO_SF12","TVCUOTAS_SF12","TVCUOTAS_TC12","CUOTAST_0","CUOTAST_12","TVCUOTA_T12","VN_OperaSF_12","VN_OperaSR_12","VN_OperaSC_12","ObligaT_CH","ObligaT_CA","SaldoT_Ccons0","SaldoT_Ccons3","SaldoT_Ccons6","SaldoT_Ccons9","SaldoT_Ccons12","TVSaldoT_Ccons3","TVSaldoT_Ccons6","TVSaldoT_Ccons9","TVSaldoT_Ccons12","SaldoT_Ctarjc0","SaldoT_Ctarjc3","SaldoT_Ctarjc6","SaldoT_Ctarjc9","SaldoT_Ctarjc12","TVSaldoT_Ctarjc3","TVSaldoT_Ctarjc6","TVSaldoT_Ctarjc9","TVSaldoT_Ctarjc12","I_SaldoSF_0","I_SaldoSF_.3","I_SaldoSF_.6","I_SaldoSF_.9","I_SaldoSF_.12","I_SaldoSR_0","I_ObligacCA_0","I_ObligacCH_30","I_ObligacCH_60","I_ObligacCH_90","I_ObligacCH_120")]
+
+#------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+  Data_Total=merge(Data_SD,Data_Buro_Es,by.x="CEDULA",by.y="CEDULA")
+  #setwd("C:/SCORE_MILITAR_DEFINITIVO/Base_Final")
+  write.table(Data_Total,"Data_Total.txt",sep="\t")
+  #save(Data_Total,file="Data_Total.RData")
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+  ########## Muestreo de Buenos ##########
+  library(sampling)
+  set.seed(1234)
+  Data_Total_B = Data_Total[Data_Total$TIPO_CLIENTE=="Bueno",]
+  pik=inclusionprobabilities(as.numeric(Data_Total_B$TIPO_CLIENTE),2978)
+  s=UPsystematic(pik)
+  # Extrae los Datos Observados
+  Data_Total_B_Muestra = getdata(Data_Total_B,s)
+  Data_Total_B_Muestra = Data_Total_B_Muestra[c(-1)]
+  save(Data_Total_B_Muestra,file="Data_Total_B_Muestra.RData")
+
+  ########## Validación de la Muestra ##########
+  # Para Variables Cualitativas
+  Base_CB = Data_Total_B[,c(2:5,7,9,12,14,31:35,101:111)]
+  Base_CBM = Data_Total_B_Muestra[,c(2:5,7,9,12,14,31:35,101:111)]
+   
+  for (j in 1:length(Base_CB))
+  {
+   #Chi-Cuadrado
+    a=summary(Base_CBM[,j])
+    b=summary(Base_CB[,j]) 
+    b=(b/sum(b))*sum(a)
+    X_2=round(sum(((a-b)^2)/b,na.rm=TRUE),3)
+    u=round(qchisq(0.95, length(a)-1),3)
+  
+   #K-S
+    a=summary(Base_CBM[,j])
+    b=summary(Base_CB[,j]) 
+    for (i in c(2:length(a)))
+    {
+     a[i]=a[i]+a[i-1]
+     b[i]=b[i]+b[i-1]
+    }  
+    a=a/max(a)
+    b=b/max(b)
+    ks=round(max(abs(a-b)),3)
+    N_S_0.05 = round(1.36/sqrt(length(Base_CB[,1])),3)
+    if (j==1) {V_ks=cbind(names(Base_CB)[j],ks,N_S_0.05,X_2,u)} else {V_ks=rbind(V_ks,cbind(names(Base_CB)[j],ks,N_S_0.05,X_2,u))}
+    }
+    V_ks
+
+# Para Variables Cuantitativas   2:5,7,9,12,14,31:35
+  Base_CoB = Data_Total_B[,c(-1,-2,-3,-4,-5,-7,-9,-12,-13,-14,-15,-31,-32,-33,-34,-35,-101,-102,-103,-104,-105,-106,-107,-108,-109,-110,-111)]
+  Base_CoBM = Data_Total_B_Muestra[,c(-1,-2,-3,-4,-5,-7,-9,-12,-13,-14,-15,-31,-32,-33,-34,-35,-101,-102,-103,-104,-105,-106,-107,-108,-109,-110,-111)]
+  
+  for (j in 1:length(Base_CoB))
+  { 
+   #Chi-Cuadrado
+    a1=Base_CoB[,j]
+    b1=Base_CoBM[,j]
+    a=summary(a1)
+    b=summary(b1)
+    rmin=min(a[1],b[1])
+    #rmax=max(quantile(c(a1),probs=0.99,na.rm=TRUE),quantile(c(b1),probs=0.99,na.rm=TRUE))
+    rmax=max(a[6],b[6])
+    c=seq(rmin-1,rmax+1,(rmax+1-rmin+1)/10)
+    a=summary(cut(a1[a1<rmax & a1>rmin & is.na(a1)==FALSE],c))
+    b=summary(cut(b1[b1<rmax & b1>rmin & is.na(b1)==FALSE],c))
+    b=(b/sum(b))*sum(a)
+    X_2=round(sum(((a[b!=0]-b[b!=0])^2)/b[b!=0],na.rm=TRUE),3)
+    u=round(qchisq(0.95, length(a)-1),3)
+
+   #K-S
+    a1=Base_CoB[,j]
+    b1=Base_CoBM[,j]
+    a=summary(a1)
+    b=summary(b1)
+    rmin=min(a[1],b[1])
+    #rmax=max(quantile(c(a1),probs=0.99,na.rm=TRUE),quantile(c(b1),probs=0.99,na.rm=TRUE))
+    rmax=max(a[6],b[6])
+    c=seq(rmin-1,rmax+1,(rmax+1-rmin+1)/10)
+    a=summary(cut(a1[a1<rmax & a1>rmin & is.na(a1)==FALSE],c))
+    b=summary(cut(b1[b1<rmax & b1>rmin & is.na(b1)==FALSE],c))
+    for (i in c(2:length(a))){
+    a[i]=a[i]+a[i-1]
+    b[i]=b[i]+b[i-1]
+   }  
+   if (max(a)==0) a=0 else a=a/max(a)
+   if (max(b)==0) b=0 else b=b/max(b) 
+   ks=round(max(abs(a-b)),3)
+   if (is.na(ks)==TRUE) 0 else ks=ks
+   N_S_0.05 = round(1.36/sqrt(length(Base_CoB[,1])),3)
+   if (j==1) {V_ks=cbind(names(Base_CoB)[j],ks,N_S_0.05,X_2,u)} else {V_ks=rbind(V_ks,cbind(names(Base_CoB)[j],ks,N_S_0.05,X_2,u))}
+  }
+  V_ks
+
+#---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#                 CONSTRUCCION DEL MODELO SCORING
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#------------------------------------------------------------
+#------------------------------------------------------------
+#                  Base Final Scoring                       *
+#------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------
+#Se une a todos los clientes malos con una muestra representativa de los clientes buenos
+#y se determina la base total de clientes a considerar para calibrar y estimar el modelo scoring
+#-----------------------------------------------------------------------------------------------
+  Data_Total_M = Data_Total[Data_Total$TIPO_CLIENTE=="Malo",]
+  Data_Modelo = rbind(Data_Total_M,Data_Total_B_Muestra)
+  save(Data_Modelo,file="Data_Modelo.RData")  
+  write.table(Data_Modelo,"Base_Final.txt")
+#------------------------------------------------------------------------------------------
+# ANALISIS DISCRIMINANTE INDIVIDUAL
+# A PARTIR DE UN ANÁLISIS ESTADÍSTICO FUNDAMENTADO EN ARBOLES DE CLASIFICACIÓN Y UN ANÁLISIS DE 
+# DIVERGENCIA SE DETERMINARON QUE DE TODO EL CONJUNTO DE VARIABLES TAN SOLO 44 VARIABLES SON LAS QUE
+# APORTA INFORMACIÓN PARA DISCRIMINAR A LOS CLIENTES BUENOS DE LOS MALOS (REVISAR ARCHIVO EXCEL)
+# A CONTINUACION SE CODIFICAN LAS VARIABLES DEL MODELO PARA QUE CAPTUREN LA NO LINEALIDAD Y LA PARSIMONIA
+# DE LAS VARIABLES EXOGENAS CON LA VARIABLE INDEPENDIENTE (TIPO CLIENTE)
+#------------------------------------------------------------------------------------------
+
+  Data_Modelo$I_ObligacCH_30 <- as.factor(Data_Modelo$I_ObligacCH_30)
+  Data_Modelo$I_ObligacCH_60 <- as.factor(Data_Modelo$I_ObligacCH_60)
+  Data_Modelo$I_ObligacCH_90 <- as.factor(Data_Modelo$I_ObligacCH_90)
+  Data_Modelo$I_ObligacCH_120 <- as.factor(Data_Modelo$I_ObligacCH_120)
+  Data_Modelo$I_ObligacCA_0 <- as.factor(Data_Modelo$I_ObligacCA_0)
+
+# INDICE OBLIGACIONES MORA 
+  levels(Data_Modelo$I_ObligacCH_30) = c("Propenso a ser Bueno","Propenso a ser Malo")
+  levels(Data_Modelo$I_ObligacCH_60) = c("Propenso a ser Bueno","Propenso a ser Malo")
+  levels(Data_Modelo$I_ObligacCH_90) = c("Propenso a ser Bueno","Propenso a ser Malo")
+  levels(Data_Modelo$I_ObligacCH_120) = c("Propenso a ser Bueno","Propenso a ser Malo")
+  levels(Data_Modelo$I_ObligacCA_0) = c("Propenso a ser Bueno","Propenso a ser Malo")
+  Data_Modelo$I_ObligacCH_30 <- relevel(Data_Modelo$I_ObligacCH_30, ref="Propenso a ser Bueno")
+  Data_Modelo$I_ObligacCH_60 <- relevel(Data_Modelo$I_ObligacCH_60, ref="Propenso a ser Bueno")
+  Data_Modelo$I_ObligacCH_90 <- relevel(Data_Modelo$I_ObligacCH_90, ref="Propenso a ser Bueno")
+  Data_Modelo$I_ObligacCH_120 <- relevel(Data_Modelo$I_ObligacCH_120, ref="Propenso a ser Bueno")
+  Data_Modelo$I_ObligacCA_0 <- relevel(Data_Modelo$I_ObligacCA_0, ref="Propenso a ser Bueno")
+
+# PEOR CALIFICACIÓN CRÉDITOS DE CONSUMO HACE 3 MESES Y SALDO PROMEDIO CUENTA
+  Data_Modelo$D1=0 ### PREMIA
+  Data_Modelo$D1[(Data_Modelo$P_Cali_Ccons_.3=="No Dispone") & (Data_Modelo$SPC=="3B"|Data_Modelo$SPC=="3M"|Data_Modelo$SPC=="3A"|Data_Modelo$SPC=="4B"|Data_Modelo$SPC=="4M"|Data_Modelo$SPC=="4A"|Data_Modelo$SPC=="5B"|Data_Modelo$SPC=="9A")]=1
+  Data_Modelo$D1 <- as.factor(Data_Modelo$D1)
+  levels(Data_Modelo$D1) = c("Propenso a ser Malo","Propenso a ser Bueno")
+
+# TASA DE VARIACIÓN CUOTAS TOTALES TARJETA CRÉDITO HACE 12 MESES Y RANGO
+  Data_Modelo$D2=1 ### CASTIGA
+  Data_Modelo$D2[Data_Modelo$TVCUOTAS_TC12<=0 & (Data_Modelo$RANGO=="EMCI"|Data_Modelo$RANGO=="PASIVO")]=0
+  Data_Modelo$D2 <- as.factor(Data_Modelo$D2)
+  levels(Data_Modelo$D2) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# GÉNERO Y RANGO
+  Data_Modelo$D3=1 ### CASTIGA
+  Data_Modelo$D3[Data_Modelo$GENERO=="Masculino" & (Data_Modelo$RANGO=="EMCI"|Data_Modelo$RANGO=="PASIVO")]=0
+  Data_Modelo$D3 <- as.factor(Data_Modelo$D3)
+  levels(Data_Modelo$D3) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# TIPO DE VIVIENDA Y RANGO
+  Data_Modelo$D4=1 ### CASTIGA
+  Data_Modelo$D4[(Data_Modelo$T_VIVIE=="Arrendada"|Data_Modelo$T_VIVIE=="Familiares"|Data_Modelo$T_VIVIE=="Propia") & (Data_Modelo$RANGO=="EMCI"|Data_Modelo$RANGO=="PASIVO")]=0
+  Data_Modelo$D4 <- as.factor(Data_Modelo$D4)
+  levels(Data_Modelo$D4) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# EDAD, RANGO Y SALDO PROMEDIO CUENTA
+  Data_Modelo$D5=1 ### CASTIGA
+  Data_Modelo$D5[(Data_Modelo$EDAD<=44.08 & Data_Modelo$RANGO=="EMCI") | (Data_Modelo$EDAD>44.08 & (Data_Modelo$SPC=="1B"|Data_Modelo$SPC=="1M"|Data_Modelo$SPC=="1A"|Data_Modelo$SPC=="2B"))]=0
+  Data_Modelo$D5 <- as.factor(Data_Modelo$D5)
+  levels(Data_Modelo$D5) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# NIVEL DE EDUCACIÓN Y RANGO
+  Data_Modelo$D6=1 ### CASTIGA
+  Data_Modelo$D6[(Data_Modelo$N_EDUCA=="Otros Estudios"|Data_Modelo$N_EDUCA=="Post Doctorado"|Data_Modelo$N_EDUCA=="Secundaria"|Data_Modelo$N_EDUCA=="Vacío") & (Data_Modelo$RANGO=="EMCI"|Data_Modelo$RANGO=="PASIVO")]=0
+  Data_Modelo$D6 <- as.factor(Data_Modelo$D6)
+  levels(Data_Modelo$D6) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# NÚMERO DE CARGAS, RANGO Y ObligaT_CH
+  Data_Modelo$D7=0 ### PREMIA
+  Data_Modelo$D7[(Data_Modelo$N_CARGAS==0 & Data_Modelo$RANGO=="CABOS") | (Data_Modelo$N_CARGAS>0 & Data_Modelo$ObligaT_CH==0)]=1
+  Data_Modelo$D7 <- as.factor(Data_Modelo$D7)
+  levels(Data_Modelo$D7) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# ANTIGUEDAD Y ObligaT_CH
+  Data_Modelo$D8=1 ### CASTIGA
+  Data_Modelo$D8[Data_Modelo$ANTIG>234 & Data_Modelo$ObligaT_CH>0]=0
+  Data_Modelo$D8 <- as.factor(Data_Modelo$D8)
+  levels(Data_Modelo$D8) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# VARIACIÓN SALDO SECTOR REAL HACE 6 MESES Y RANGO
+  Data_Modelo$D9=1 ### CASTIGA
+  Data_Modelo$D9[Data_Modelo$VSALDO_SR6>-2 & (Data_Modelo$RANGO=="EMCI"|Data_Modelo$RANGO=="PASIVO")]=0 
+  Data_Modelo$D9 <- as.factor(Data_Modelo$D9)
+  levels(Data_Modelo$D9) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# CUOTAS SECTOR FINANCIERO AL MOMENTO DE SOLICITAR EL CRÉDITO Y RANGO
+  Data_Modelo$D10=0 ### PREMIA
+  Data_Modelo$D10[(Data_Modelo$CUOTAS_SF_0>47 & Data_Modelo$CUOTAS_SF_0<=133) & (Data_Modelo$RANGO=="CABOS"|Data_Modelo$RANGO=="DESDE_SARGENTO"|Data_Modelo$RANGO=="SOLDADOS")]=1
+  Data_Modelo$D10 <- as.factor(Data_Modelo$D10)
+  levels(Data_Modelo$D10) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+  
+# CIUDAD DE DIRECCION
+  Data_Modelo$C_DIREC <- as.character(Data_Modelo$C_DIREC)
+  Data_Modelo$C_DIREC[Data_Modelo$C_DIREC=="DURAN"|Data_Modelo$C_DIREC=="MACHALA"|Data_Modelo$C_DIREC=="MILAGRO"|Data_Modelo$C_DIREC=="QUEVEDO"|Data_Modelo$C_DIREC=="SALINAS"]="DUR;MAC;MIL;QUE;SAL"
+  Data_Modelo$C_DIREC[Data_Modelo$C_DIREC=="ESMERALDAS"|Data_Modelo$C_DIREC=="GUAYAQUIL"|Data_Modelo$C_DIREC=="LA LIBERTAD"]="ESM;GUA;LA_LIB;"
+  Data_Modelo$C_DIREC[Data_Modelo$C_DIREC=="LATACUNGA"|Data_Modelo$C_DIREC=="OTRASC"|Data_Modelo$C_DIREC=="QUITO"|Data_Modelo$C_DIREC=="RIOBAMBA"|Data_Modelo$C_DIREC=="SANTA ROSA"|Data_Modelo$C_DIREC=="SANTO DOMINGO"]="LAT;OTR;QUI;RIO;SA_R;SA_D"
+  Data_Modelo$C_DIREC <- as.factor(Data_Modelo$C_DIREC)
+  Data_Modelo$C_DIREC <- relevel(Data_Modelo$C_DIREC, ref="DUR;MAC;MIL;QUE;SAL")  
+
+# CIUDAD DE NACIMIENTO
+  Data_Modelo$C_NACIM <- as.character(Data_Modelo$C_NACIM)
+  Data_Modelo$C_NACIM[Data_Modelo$C_NACIM=="BALAO"|Data_Modelo$C_NACIM=="MACHALA"|Data_Modelo$C_NACIM=="SANTA ROSA"]="BAL;MAC;SA_R"
+  Data_Modelo$C_NACIM[Data_Modelo$C_NACIM=="DURAN"|Data_Modelo$C_NACIM=="ESMERALDAS"|Data_Modelo$C_NACIM=="GUAYAQUIL"|Data_Modelo$C_NACIM=="MILAGRO"|Data_Modelo$C_NACIM=="QUEVEDO"]="DUR;ESM;GUA;MIL;QUE"
+  Data_Modelo$C_NACIM[Data_Modelo$C_NACIM=="LATACUNGA"|Data_Modelo$C_NACIM=="OTRASC"|Data_Modelo$C_NACIM=="QUITO"]="LAT;OTR;QUI"
+  Data_Modelo$C_NACIM[Data_Modelo$C_NACIM=="LOJA"|Data_Modelo$C_NACIM=="RIOBAMBA"]="LOJA;RIOB"
+  Data_Modelo$C_NACIM <- as.factor(Data_Modelo$C_NACIM)
+  Data_Modelo$C_NACIM <- relevel(Data_Modelo$C_NACIM, ref="BAL;MAC;SA_R")
+
+# RANGO
+  Data_Modelo$RANGO <- relevel(Data_Modelo$RANGO, ref="SOLDADOS")
+
+# SALDO PROMEDIO CUENTA
+  Data_Modelo$SPC <- as.character(Data_Modelo$SPC) 
+  Data_Modelo$SPC[Data_Modelo$SPC=="1B"|Data_Modelo$SPC=="1M"|Data_Modelo$SPC=="1A"|Data_Modelo$SPC=="2B"]="1B;1M;1A;2B"
+  Data_Modelo$SPC[Data_Modelo$SPC=="2M"|Data_Modelo$SPC=="2A"|Data_Modelo$SPC=="Vacío"]="2M;2A;Vacío"
+  Data_Modelo$SPC[Data_Modelo$SPC=="3B"|Data_Modelo$SPC=="3M"|Data_Modelo$SPC=="3A"|Data_Modelo$SPC=="4B"|Data_Modelo$SPC=="4M"|Data_Modelo$SPC=="4A"|Data_Modelo$SPC=="5B"|Data_Modelo$SPC=="9A"]="3B;3M;3A;4B;4M;4A;5B;9A"
+  Data_Modelo$SPC <- as.factor(Data_Modelo$SPC)
+  Data_Modelo$SPC <- relevel(Data_Modelo$SPC, ref="2M;2A;Vacío")
+
+# ACREDITACIÓN SOBRE SUELDO
+  Data_Modelo$ficticia1=0
+  Data_Modelo$ficticia1[Data_Modelo$A_S > 0.286 & Data_Modelo$A_S <= 0.44]=1
+  Data_Modelo$ficticia1[Data_Modelo$A_S > 0.44 & Data_Modelo$A_S <= 0.999]=2
+  Data_Modelo$ficticia1[Data_Modelo$A_S > 0.999]=3
+  Data_Modelo$ficticia1 <- as.factor(Data_Modelo$ficticia1)
+  Data_Modelo$A_S = Data_Modelo$ficticia1
+  levels(Data_Modelo$A_S) = c("<=0.286","(0.286,0.44]","(0.44,0.999]",">0.999")
+  Data_Modelo$A_S <- relevel(Data_Modelo$A_S, ref="(0.286,0.44]")
+
+# TASA DE VARIACIÓN CUOTAS TOTALES
+  Data_Modelo$ficticia2=0
+  Data_Modelo$ficticia2[Data_Modelo$TVCUOTA_T12>-0.004 & Data_Modelo$TVCUOTA_T12<=0.398]=1
+  Data_Modelo$ficticia2[Data_Modelo$TVCUOTA_T12>0.398]=2
+  Data_Modelo$ficticia2 <- as.factor(Data_Modelo$ficticia2)
+  Data_Modelo$TVCUOTA_T12=Data_Modelo$ficticia2
+  levels(Data_Modelo$TVCUOTA_T12) = c("<=-0.004","(-0.004,0.398]",">0.398") 
+  Data_Modelo$TVCUOTA_T12 <- relevel(Data_Modelo$TVCUOTA_T12, ref="(-0.004,0.398]")
+
+# ICALIF 
+  Data_Modelo$ficticia3=0
+  Data_Modelo$ficticia3[Data_Modelo$ICALIF>0.9 & Data_Modelo$ICALIF<=0.917]=1
+  Data_Modelo$ficticia3[Data_Modelo$ICALIF>0.917]=2
+  Data_Modelo$ficticia3[is.na(Data_Modelo$ICALIF)==TRUE]=3
+  Data_Modelo$ficticia3 <- as.factor(Data_Modelo$ficticia3)
+  Data_Modelo$ICALIF = Data_Modelo$ficticia3
+  levels(Data_Modelo$ICALIF) = c("<=0.9","(0.9,0.917]",">0.917","Nuevos")
+  Data_Modelo$ICALIF <- relevel(Data_Modelo$ICALIF, ref=">0.917")
+
+# SALDO SECTOR FINANCIERO HOY
+  Data_Modelo$ficticia4=0
+  Data_Modelo$ficticia4[Data_Modelo$SALDO_SF_0>0]=1
+  Data_Modelo$ficticia4 <- as.factor(Data_Modelo$ficticia4)
+  Data_Modelo$SALDO_SF_0 = Data_Modelo$ficticia4
+  levels(Data_Modelo$SALDO_SF_0) = c("0",">0")
+  Data_Modelo$SALDO_SF_0 <- relevel(Data_Modelo$SALDO_SF_0, ref="0")
+
+# VARIACIÓN DEL # DE CRÉDITO DE CONSUMO
+  Data_Modelo$ficticia5=0
+  Data_Modelo$ficticia5[Data_Modelo$VN_Cconsumo_12>-4 & Data_Modelo$VN_Cconsumo_12<=-2]=1
+  Data_Modelo$ficticia5[Data_Modelo$VN_Cconsumo_12>-2 & Data_Modelo$VN_Cconsumo_12<=0]=2
+  Data_Modelo$ficticia5[Data_Modelo$VN_Cconsumo_12>0]=3
+  Data_Modelo$ficticia5 <- as.factor(Data_Modelo$ficticia5)
+  Data_Modelo$VN_Cconsumo_12 = Data_Modelo$ficticia5
+  levels(Data_Modelo$VN_Cconsumo_12) = c("<=-4","(-4,-2]","(-2,0]",">0")
+  Data_Modelo$VN_Cconsumo_12 <- relevel(Data_Modelo$VN_Cconsumo_12, ref="(-4,-2]")
+
+# TASA DE VARIACIÓN SALDO SECTOR FINANCIERO HACE 3 MESES
+  Data_Modelo$ficticia6=0
+  Data_Modelo$ficticia6[Data_Modelo$TVSALDO_SF3>-0.133 & Data_Modelo$TVSALDO_SF3<=0]=1
+  Data_Modelo$ficticia6[Data_Modelo$TVSALDO_SF3>0 & Data_Modelo$TVSALDO_SF3<=0.775]=2
+  Data_Modelo$ficticia6[Data_Modelo$TVSALDO_SF3>0.775]=3
+  Data_Modelo$ficticia6 <- as.factor(Data_Modelo$ficticia6)
+  Data_Modelo$TVSALDO_SF3 = Data_Modelo$ficticia6
+  Data_Modelo$TVSALDO_SF3 <- as.factor(Data_Modelo$TVSALDO_SF3)
+  levels(Data_Modelo$TVSALDO_SF3) = c("<=-0.133","(-0.133,0]","(0,0.775]",">0.775")
+  Data_Modelo$TVSALDO_SF3 <- relevel(Data_Modelo$TVSALDO_SF3, ref="<=-0.133")
+
+# TASA DE VARIACIÓN SALDO SECTOR FINANCIERO HACE 6 MESES
+  Data_Modelo$ficticia7=0
+  Data_Modelo$ficticia7[Data_Modelo$TVSALDO_SF6>-1.566 & Data_Modelo$TVSALDO_SF6<=-0.242]=1
+  Data_Modelo$ficticia7[Data_Modelo$TVSALDO_SF6>-0.242 & Data_Modelo$TVSALDO_SF6<=0]=2
+  Data_Modelo$ficticia7[Data_Modelo$TVSALDO_SF6>0 & Data_Modelo$TVSALDO_SF6<=1.264]=3
+  Data_Modelo$ficticia7[Data_Modelo$TVSALDO_SF6>1.264]=4
+  Data_Modelo$ficticia7 <- as.factor(Data_Modelo$ficticia7)
+  Data_Modelo$TVSALDO_SF6 = Data_Modelo$ficticia7
+  levels(Data_Modelo$TVSALDO_SF6) = c("<=-1.566","(-1.566,-0.242]","(-0.242,0]","(0,1.264]",">1.264")
+  Data_Modelo$TVSALDO_SF6 <- relevel(Data_Modelo$TVSALDO_SF6, ref="(-1.566,-0.242]")
+
+# CUOTAS TOTALES AL MOMENTO DE SOLICITAR EL CRÉDITO
+  Data_Modelo$ficticia8=0
+  Data_Modelo$ficticia8[Data_Modelo$CUOTAST_0>0 & Data_Modelo$CUOTAST_0<=46]=1
+  Data_Modelo$ficticia8[Data_Modelo$CUOTAST_0>46 & Data_Modelo$CUOTAST_0<=135]=2
+  Data_Modelo$ficticia8[Data_Modelo$CUOTAST_0>135 & Data_Modelo$CUOTAST_0<=230]=3
+  Data_Modelo$ficticia8[Data_Modelo$CUOTAST_0>230]=4
+  Data_Modelo$ficticia8 <- as.factor(Data_Modelo$ficticia8)
+  Data_Modelo$CUOTAST_0 = Data_Modelo$ficticia8
+  levels(Data_Modelo$CUOTAST_0) = c("0","(0,46]","(46,135]","(135,230]",">230")
+  Data_Modelo$CUOTAST_0 <- relevel(Data_Modelo$CUOTAST_0, ref="(135,230]")
+
+# CUOTAS TARJETA DE CRÉDITO AL MOMENTO DE SOLICITAR EL CRÉDITO
+  Data_Modelo$ficticia9=0
+  Data_Modelo$ficticia9[Data_Modelo$CUOTAS_TC_0>0 & Data_Modelo$CUOTAS_TC_0<=374]=1
+  Data_Modelo$ficticia9[Data_Modelo$CUOTAS_TC_0>374]=2
+  Data_Modelo$ficticia9 <- as.factor(Data_Modelo$ficticia9)
+  Data_Modelo$CUOTAS_TC_0 = Data_Modelo$ficticia9
+  levels(Data_Modelo$CUOTAS_TC_0) = c("0","(0,374]",">374")
+  Data_Modelo$CUOTAS_TC_0 <- relevel(Data_Modelo$CUOTAS_TC_0, ref=">374")
+
+# TASA DE VARIACiÓN CUPO TARJETA DE CRÉDITO HACE 12 MESES
+  Data_Modelo$ficticia10=0
+  Data_Modelo$ficticia10[Data_Modelo$TVCUPO_TC12>0]=1
+  Data_Modelo$ficticia10 <- as.factor(Data_Modelo$ficticia10)
+  Data_Modelo$TVCUPO_TC12 = Data_Modelo$ficticia10
+  levels(Data_Modelo$TVCUPO_TC12) = c("<=0",">0")
+  Data_Modelo$TVCUPO_TC12 <- relevel(Data_Modelo$TVCUPO_TC12, ref="<=0")
+
+# TASA DE VARIACIÓN SALDOS TOTALES HACE 3 MESES RESPECTO A ACREDITACIÓN
+  Data_Modelo$ficticia11=0
+  Data_Modelo$ficticia11[Data_Modelo$TVSaldoT_Ccons3>-0.345 & Data_Modelo$TVSaldoT_Ccons3<=-0.002]=1
+  Data_Modelo$ficticia11[Data_Modelo$TVSaldoT_Ccons3>-0.002 & Data_Modelo$TVSaldoT_Ccons3<=0]=2
+  Data_Modelo$ficticia11[Data_Modelo$TVSaldoT_Ccons3>0 & Data_Modelo$TVSaldoT_Ccons3<=0.678]=3
+  Data_Modelo$ficticia11[Data_Modelo$TVSaldoT_Ccons3>0.678]=4
+  Data_Modelo$ficticia11 <- as.factor(Data_Modelo$ficticia11)
+  Data_Modelo$TVSaldoT_Ccons3 = Data_Modelo$ficticia11
+  levels(Data_Modelo$TVSaldoT_Ccons3) = c("<=-0.345","(-0.345,-0.002]","(-0.002,0]","(0,0.678]",">0.678")
+  Data_Modelo$TVSaldoT_Ccons3 <- relevel(Data_Modelo$TVSaldoT_Ccons3, ref="(-0.345,-0.002]")
+
+# TASA DE VARIACIÓN SALDOS TOTALES HACE 6 MESES RESPECTO A ACREDITACIÓN
+  Data_Modelo$ficticia12=0
+  Data_Modelo$ficticia12[Data_Modelo$TVSaldoT_Ccons6>-0.103 & Data_Modelo$TVSaldoT_Ccons6<=-0.002]=1
+  Data_Modelo$ficticia12[Data_Modelo$TVSaldoT_Ccons6>-0.002 & Data_Modelo$TVSaldoT_Ccons6<=0]=2
+  Data_Modelo$ficticia12[Data_Modelo$TVSaldoT_Ccons6>0 & Data_Modelo$TVSaldoT_Ccons6<=0.865]=3
+  Data_Modelo$ficticia12[Data_Modelo$TVSaldoT_Ccons6>0.865]=4
+  Data_Modelo$ficticia12 <- as.factor(Data_Modelo$ficticia12)
+  Data_Modelo$TVSaldoT_Ccons6 = Data_Modelo$ficticia12
+  levels(Data_Modelo$TVSaldoT_Ccons6) = c("<=-0.103","(-0.103,-0.002]","(-0.002,0]","(0,0.865]",">0.865")
+  Data_Modelo$TVSaldoT_Ccons6 <- relevel(Data_Modelo$TVSaldoT_Ccons6, ref="(0,0.865]")
+
+# VARIACIÓN # OPERACIONES SECTOR FINANCIERO HACE 12 MESES
+  Data_Modelo$ficticia13=0
+  Data_Modelo$ficticia13[Data_Modelo$VN_OperaSF_12>-2 & Data_Modelo$VN_OperaSF_12<=0]=1
+  Data_Modelo$ficticia13[Data_Modelo$VN_OperaSF_12>0]=2
+  Data_Modelo$ficticia13 <- as.factor(Data_Modelo$ficticia13)
+  Data_Modelo$VN_OperaSF_12 = Data_Modelo$ficticia13
+  levels(Data_Modelo$VN_OperaSF_12) = c("<=-2","(-2,0]",">0")
+  Data_Modelo$VN_OperaSF_12 <- relevel(Data_Modelo$VN_OperaSF_12, ref="(-2,0]")
+
+# VARIACIÓN SALDO SECTOR FINANCIERO HACE 3 MESES
+  Data_Modelo$ficticia14=0
+  Data_Modelo$ficticia14[Data_Modelo$VSALDO_SF3>-0.3 & Data_Modelo$VSALDO_SF3<=0]=1
+  Data_Modelo$ficticia14[Data_Modelo$VSALDO_SF3>0]=2
+  Data_Modelo$ficticia14 <- as.factor(Data_Modelo$ficticia14)
+  Data_Modelo$VSALDO_SF3 = Data_Modelo$ficticia14
+  levels(Data_Modelo$VSALDO_SF3) = c("<=-0.3","(-0.3,0]",">0")
+  Data_Modelo$VSALDO_SF3 <- relevel(Data_Modelo$VSALDO_SF3, ref="<=-0.3")
+
+# VARIACIÓN SALDO SECTOR FINANCIERO HACE 6 MESES
+  Data_Modelo$ficticia15=0
+  Data_Modelo$ficticia15[Data_Modelo$VSALDO_SF6>-1 & Data_Modelo$VSALDO_SF6<=0]=1
+  Data_Modelo$ficticia15[Data_Modelo$VSALDO_SF6>0 & Data_Modelo$VSALDO_SF6<=323]=2
+  Data_Modelo$ficticia15[Data_Modelo$VSALDO_SF6>323]=3
+  Data_Modelo$ficticia15 <- as.factor(Data_Modelo$ficticia15)
+  Data_Modelo$VSALDO_SF6 = Data_Modelo$ficticia15
+  levels(Data_Modelo$VSALDO_SF6) = c("<=-1","(-1,0]","(0,323]",">323")
+  Data_Modelo$VSALDO_SF6 <- relevel(Data_Modelo$VSALDO_SF6, ref="<=-1")
+
+# TIPO DE CLIENTE
+  Data_Modelo$TIPO_CLIENTE <- as.character(Data_Modelo$TIPO_CLIENTE)
+  Data_Modelo$TIPO_CLIENTE[Data_Modelo$TIPO_CLIENTE=="Bueno"]=1
+  Data_Modelo$TIPO_CLIENTE[Data_Modelo$TIPO_CLIENTE=="Malo"]=0
+  Data_Modelo$TIPO_CLIENTE <- as.factor(Data_Modelo$TIPO_CLIENTE)
+
+#------------------------------------------------------------------------------------------
+# ANALISIS DISCRIMINANTE GLOBAL 
+# LO ANTERIOR PONE EN EVIDENCIA EL APORTE DE CADA VARIABLE DE MANERA INDIVIDUAL EN LA EXPLICACIÓN DE LOS CLIENTES BUENOS
+# Y MALOS, EN ESTA ETAPA SE VA A ANALIZAR EL APORTE DEL MEJOR GRUPO DE VARIABLES EXOGENAS PARA QUE EXPLIQUEN EL COMPORTAMIENTO
+# DE LOS CLIENTES BUENOS Y MALOS PARA LO CUAL SE UTILIZA EL MÉTODO DE SELECCION AUTOMÁTICA A PARTIR DE CRITERIOS DE INFORMACION AIC
+# SIN EMBARGO SE REALIZA ALGUNAS VECES ESTE EJERCICIO PARA EVIDENCIAR QUE VARIABLES DEBEN MANTENERSE EN EL MODODELO Y QUE NO 
+# ESTE CONDICIONADO CON LA MUESTRA UTILIZADA
+#------------------------------------------------------------------------------------------
+
+Base_Modelo=Data_Modelo[,c("C_DIREC","SPC","RANGO","C_NACIM","TIPO_CLIENTE","A_S",
+            "N_TarjetaCA_0","N_Cconsumo_0","SALDO_SF_0","CUPOS_TC_0","N_Operac_SF_0",
+            "ICALIF","VN_Cconsumo_12","TVSALDO_SF3","TVSALDO_SF6","TVCUPO_TC12","CUOTAST_0",
+            "TVCUOTA_T12","VN_OperaSF_12","ObligaT_CH","TVSaldoT_Ccons3","TVSaldoT_Ccons6",
+            "I_ObligacCH_30","I_ObligacCH_60","I_ObligacCH_90","D1","D2",
+            "D3","D4","D5","D6","D7","D8","D9","D10","CH_UltimoA_M30","CH_UltimoA_M60",
+            "CH_UltimoA_M90","CA_Obligac_M0","CUOTAS_TC_0","VSALDO_SF3",
+            "VSALDO_SF6","CH_UltimoA_M120","I_ObligacCH_120")]
+
+for (i in c(1:1000))
+{ 
+ d = sort(sample(nrow(Base_Modelo), nrow(Base_Modelo)*0.6)) 
+ train<-Base_Modelo[d,] 
+ test<-Base_Modelo[-d,] 
+ # PASOS SUCESIVOS
+   Modelo_PS <- step(glm(TIPO_CLIENTE~1,data=train,family=binomial),scope=list(lower=~1,upper=~SPC+RANGO+A_S+ObligaT_CH+CH_UltimoA_M30+C_NACIM+TVSALDO_SF3+CH_UltimoA_M60+I_ObligacCH_30+C_DIREC+ICALIF+I_ObligacCH_60+I_ObligacCH_90+CA_Obligac_M0+TVCUOTA_T12+CUOTAST_0+CUOTAS_TC_0+N_TarjetaCA_0+N_Cconsumo_0+VN_Cconsumo_12+N_Operac_SF_0+TVSaldoT_Ccons6+TVCUPO_TC12+VN_OperaSF_12+TVSaldoT_Ccons3+SALDO_SF_0+VSALDO_SF3+VSALDO_SF6+D1+D2+D3+D4+D5+D6+D7+D8+D9+D10+CH_UltimoA_M30+CH_UltimoA_M60+CH_UltimoA_M90+CH_UltimoA_M120+CUOTAS_TC_0+TVSALDO_SF6),direction="both",na.action=na.pass)
+   REGRESORAS=as.character(Modelo_PS$call)
+   test$score<-predict(Modelo_PS,type='response',test)
+   pred<-prediction(test$score,test$TIPO_CLIENTE)
+   discr=performance(pred,"auc")
+   AUROC=as.numeric(discr@y.values)
+   RESUMEN=cbind(REG=REGRESORAS[2],AUROC=AUROC)
+   if (i==1){RESUMEN_T=RESUMEN} else {RESUMEN_T=rbind(RESUMEN_T,RESUMEN)}
+}
+
+for (i in c(1:1000)){ 
+borrar=as.data.frame(strsplit(RESUMEN_T[i,1], list("\\+")))
+levels(borrar$REG)[length(borrar[,1])]=strsplit(levels(borrar$REG)[length(borrar[,1])], "~")[[1]][2]
+if (i==1){VARIABLES_T=borrar} else {VARIABLES_T=rbind(VARIABLES_T,borrar)}
+}
+
+borrar=as.matrix(sort(table(VARIABLES_T),decreasing = TRUE))
+
+Simulacion_V=borrar
+
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+# ANALISIS MANUAL DE MULTICOLINEALIDAD, CAPACIDAD DISCRIMINATORIA (AUC) Y PRUEBAS DE BUENA ESPECIFICACION DEL MODELO
+#%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+#------------------------------------------------------------------------------------------
+ Modelo_1 <- glm(TIPO_CLIENTE~A_S,data=Base_Modelo,family=binomial)
+ Modelo_2 <- glm(TIPO_CLIENTE~A_S+SPC,data=Base_Modelo,family=binomial)
+ Modelo_3 <- glm(TIPO_CLIENTE~A_S+SPC+D5,data=Base_Modelo,family=binomial)
+ Modelo_4 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC,data=Base_Modelo,family=binomial)
+ Modelo_5 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6,data=Base_Modelo,family=binomial)
+ Modelo_6 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6+CH_UltimoA_M120,data=Base_Modelo,family=binomial)
+ Modelo_7 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6+CH_UltimoA_M120+ICALIF,data=Base_Modelo,family=binomial)
+ Modelo_8 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6+CH_UltimoA_M120+ICALIF+RANGO,data=Base_Modelo,family=binomial)
+ Modelo_9 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6+CH_UltimoA_M120+ICALIF+RANGO+ObligaT_CH,data=Base_Modelo,family=binomial)
+ Modelo_10 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6+CH_UltimoA_M120+ICALIF+RANGO+ObligaT_CH+N_Cconsumo_0,data=Base_Modelo,family=binomial)
+ Modelo_11 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6+CH_UltimoA_M120+ICALIF+RANGO+ObligaT_CH+N_Cconsumo_0+TVCUPO_TC12,data=Base_Modelo,family=binomial)
+ Modelo_12 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6+CH_UltimoA_M120+ICALIF+RANGO+ObligaT_CH+N_Cconsumo_0+TVCUPO_TC12+I_ObligacCH_90,data=Base_Modelo,family=binomial)
+ Modelo_13 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6+CH_UltimoA_M120+ICALIF+RANGO+ObligaT_CH+N_Cconsumo_0+TVCUPO_TC12+I_ObligacCH_90+D9,data=Base_Modelo,family=binomial)
+ Modelo_14 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6+CH_UltimoA_M120+ICALIF+RANGO+ObligaT_CH+N_Cconsumo_0+TVCUPO_TC12+I_ObligacCH_90+D9+D7,data=Base_Modelo,family=binomial)
+ Modelo_15 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6+CH_UltimoA_M120+ICALIF+RANGO+ObligaT_CH+N_Cconsumo_0+TVCUPO_TC12+I_ObligacCH_90+D9+D7+I_ObligacCH_30,data=Base_Modelo,family=binomial)
+ Modelo_16 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6+CH_UltimoA_M120+ICALIF+RANGO+ObligaT_CH+N_Cconsumo_0+TVCUPO_TC12+I_ObligacCH_90+D9+D7+I_ObligacCH_30+D10,data=Base_Modelo,family=binomial)
+ Modelo_17 <- glm(TIPO_CLIENTE~A_S+SPC+D5+C_DIREC+D6+CH_UltimoA_M120+ICALIF+RANGO+ObligaT_CH+N_Cconsumo_0+TVCUPO_TC12+I_ObligacCH_90+D9+D7+I_ObligacCH_30+D10+D1,data=Base_Modelo,family=binomial)
+#------------------------------------------------------------------------------------------- 
+ ########## AUROC PARA la tabla "borrar" anterior ##########
+ library(ROCR)
+ Base_Modelo$score<-predict(Modelo_17,type='response',Base_Modelo)
+ pred<-prediction(Base_Modelo$score,Base_Modelo$TIPO_CLIENTE)
+ performance(pred,"auc")
+
+#-------------------------------------------------------------------------------------------
+ ########## PRUEBA DE MULTICOLINIALIDAD ##########
+ x <- model.matrix(Modelo_17)[,c(-1)] 
+ e <- eigen(t(x) %*% x) 
+ e$val
+ sqrt(max(e$val)/min(e$val))
+
+#-------------------------------------------------------------------------------------------
+ ########## PRUEBA LOGARITMO DE VEROSIMILITUD (ESPECIFICACION)##########
+ 1-pchisq(Modelo_1$null.deviance-Modelo_1$deviance,Modelo_1$df.null-Modelo_1$df.residual)
+ 1-pchisq(Modelo_16$deviance-Modelo_17$deviance,1)
+
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+#                   MODELO SCORING FINAL 
+Modelo_Final <- glm(TIPO_CLIENTE~D5+SPC+A_S+C_DIREC+RANGO+D6+ICALIF+N_Cconsumo_0+TVCUPO_TC12+D7+I_ObligacCH_90+I_ObligacCH_30+D10+D1,data=Base_Modelo,family=binomial)
+summary(Modelo_Final)
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+
+#-------------------------------------------------------------------------------------------
+########## VALIDACIÓN MODELO ########## 
+ # AUROC
+ d = sort(sample(nrow(Base_Modelo), nrow(Base_Modelo)*0.6)) 
+ train<-Base_Modelo[d,] 
+ test<-Base_Modelo[-d,]
+ test$score<-predict(Modelo_Final,type='response',test)
+ pred<-prediction(test$score,test$TIPO_CLIENTE)
+ AUC=performance(pred,"auc")
+ AUROC=as.numeric(AUC@y.values)
+ CURVA_ROC=performance(pred,"tpr","fpr")
+ plot(CURVA_ROC,main="Curva Roc",xlab="Tasa de falsos positivos",ylab="Tasa de veraderos positivos",col=3)  
+ abline(a=0,b=1,col=2)
+
+ # K-S
+ perf <- performance(pred,"tpr","fpr")
+ KS=max(attr(perf,'y.values')[[1]]-attr(perf,'x.values')[[1]])
+ 
+ # GINI
+ GINI=2*AUROC-1
+
+#-------------------------------------------------------------------------------------------
+########## PRUEBA HOSMER LEMESHOW ##########
+Base_Modelo$TIPO_CLIENTE <- as.numeric(Base_Modelo$TIPO_CLIENTE)
+Base_Modelo$TIPO_CLIENTE[Base_Modelo$TIPO_CLIENTE==1]=0
+Base_Modelo$TIPO_CLIENTE[Base_Modelo$TIPO_CLIENTE==2]=1
+hosmerlem <-
+function (y, yhat, g = 10) 
+{
+ cutyhat <- cut(yhat, breaks = quantile(yhat, probs = seq(0, 1, 1/g)), include.lowest = T)
+ obs <- xtabs(cbind(1 - y, y) ~ cutyhat)
+ expect <- xtabs(cbind(1 - yhat, yhat) ~ cutyhat)
+ chisq <- sum((obs - expect)^2/expect)
+ P <- 1 - pchisq(chisq, g - 2)
+ c("X^2" = chisq, Df = g - 2, "P(>Chi)" = P)
+}
+hosmerlem(Base_Modelo$TIPO_CLIENTE, fitted(Modelo_Final))
+#--------------------------------------------------------------------------------------------
+########## ESTABILIDAD ÍNDICES DISCRIMINATORIOS ##########
+# PODER DISCRIMINANTE
+for (i in 1:1000)
+{
+
+  d = sort(sample(nrow(Base_Modelo), nrow(Base_Modelo)*0.6)) 
+  train<-Base_Modelo[d,] 
+  test<-Base_Modelo[-d,] 
+  Modelo_Final_d <- glm(TIPO_CLIENTE~D5+SPC+A_S+C_DIREC+RANGO+D6+ICALIF+N_Cconsumo_0+TVCUPO_TC12+D7+I_ObligacCH_90+I_ObligacCH_30+D10+D1,data=train,family=binomial)
+  
+  # AUROC
+  test$score<-predict(Modelo_Final_d,type='response',test)
+  pred<-prediction(test$score,test$TIPO_CLIENTE)
+  AUC=performance(pred,"auc")
+  AUROC=as.numeric(AUC@y.values)
+
+  # K-S
+  perf <- performance(pred,"tpr","fpr")
+  KS=max(attr(perf,'y.values')[[1]]-attr(perf,'x.values')[[1]])
+  
+  # GINI
+  GINI=2*AUROC-1
+  
+  Discriminant = cbind(AUROC,KS,GINI)
+  if (i==1){Discriminante=Discriminant} else {Discriminante=rbind(Discriminante,Discriminant)}
+}
+ x.den=Discriminante[,1]
+ y.den=Discriminante[,2]
+ z.den=Discriminante[,3]
+
+ h1<-hist(x.den,breaks=15)
+ x1hist<-c(min(h1$breaks),h1$breaks)
+ y1hist<-c(0,h1$density,0)
+ x1fit<-seq(min(x.den),max(x.den),length=40)
+ y1fit<-dnorm(x1fit,mean=mean(x.den),sd=sd(x.den))
+
+ h2<-hist(y.den,breaks=15)
+ x2hist<-c(min(h2$breaks),h2$breaks)
+ y2hist<-c(0,h2$density,0)
+ x2fit<-seq(min(y.den),max(y.den),length=40)
+ y2fit<-dnorm(x2fit,mean=mean(y.den),sd=sd(y.den))
+
+ h3<-hist(z.den,breaks=15)
+ x3hist<-c(min(h3$breaks),h3$breaks)
+ y3hist<-c(0,h3$density,0)
+ x3fit<-seq(min(z.den),max(z.den),length=40)
+ y3fit<-dnorm(x3fit,mean=mean(z.den),sd=sd(z.den))
+
+ m = matrix(c(1,1,2,3),nrow=2,byrow=FALSE)
+ x11(15,8)
+ layout(m) 
+
+ plot(x1hist,y1hist,type="s",ylim=c(0,max(y1hist,y1fit)), main="Distribución Área bajo la curva ROC \n para 1000 Regresiones",xlab="AUROC",ylab="Densidad")
+ lines(x1fit,y1fit, col="red")
+
+ plot(x2hist,y2hist,type="s",ylim=c(0,max(y2hist,y2fit)), main="Distribución K-S \n para 1000 Regresiones",xlab="K-S",ylab="Densidad")
+ lines(x2fit,y2fit, col="green")
+
+ plot(x3hist,y3hist,type="s",ylim=c(0,max(y3hist,y3fit)), main="Distribución Coeficiente Gini \n para 1000 Regresiones",xlab="Gini",ylab="Densidad")
+ lines(x3fit,y3fit, col="blue")
+
+#--------------------------------------------------------------------------------------------
+########### ESTABILIDAD PARÁMETROS ##########
+for (i in c(1:1000)) 
+{
+  ##pik=inclusionprobabilities(as.numeric(Base_Modelo$Incumplido),3000)
+  ##s=UPsystematic(pik)
+  #3 extracts the observed data
+  d = sort(sample(nrow(Base_Modelo), nrow(Base_Modelo)*0.6)) 
+  new_muestra<-Base_Modelo[d,] 
+  #New_base = (Base_Modelo0,s)
+  Modelo_Final <- glm(TIPO_CLIENTE~D5+SPC+A_S+C_DIREC+RANGO+D6+ICALIF+N_Cconsumo_0+TVCUPO_TC12+D7+I_ObligacCH_90+I_ObligacCH_30+D10+D1,data=new_muestra,family=binomial)
+  Base_Coef=t(Modelo_Final$coef)
+  if (i==1) {Base_Coef_T=Base_Coef} else {Base_Coef_T=rbind(Base_Coef_T,Base_Coef)}
+ } 
+summary(Base_Coef_T)
+
+#Plantilla Gráficas--------------------------------------------------------------------------
+ GRAFICO_PARAMETROS=function(m,BASE,TITULO,TITULO_X,TITULO_Y,TITULO_SUB,coef)
+ {
+ BASE_P=BASE
+ par(bg="cornsilk")
+ plot(BASE_P[,m],col="green4",type="l",lty=1,lwd=2,axes=F,xlab="",ylab="",main = TITULO)
+ axis(2, col.axis="blue", las=1)
+ axis(1, col.axis="blue")
+ title(xlab=TITULO_X,ylab=TITULO_Y,sub=TITULO_SUB,
+ col.main = "blue", col.lab = gray(0),col.sub = gray(0),
+ cex.main = 1.2, cex.lab = 1.0, cex.sub = 0.8, font.main = 4, font.lab = 3, font.sub = 3)
+ abline(h=mean(BASE_P[,m]),col=2,lty=2)
+ #dev.off()
+ }
+
+#Gráficas Estabilidad Parámetros--------------------------------------------------------------------------------------------
+########## INTERCEPTO ##########
+ GRAFICO_PARAMETROS(1,Base_Coef_T,"Intercepto","","Coeficiente","")
+ abline(h=-0.60264)
+
+#########D5#########
+ GRAFICO_PARAMETROS(2,Base_Coef_T,"D5","Propenso a ser Bueno","Coeficiente","")
+ abline(h=0.68727)
+
+########## SALDO PROMEDIO ##########
+ m=matrix(c(1:2),nrow=1)
+ layout(m)
+ GRAFICO_PARAMETROS(3,Base_Coef_T,"","1B;1M;1A;2B","Coeficiente","")
+ abline(h=-0.49390)
+ GRAFICO_PARAMETROS(4,Base_Coef_T,"","3B;3M;3A;4B;4M;4A;5B;9A","Coeficiente","")
+ abline(h=0.35214)
+ par(oma=c(1,1,2.5,1))
+ mtext(side=3,line=0,cex=1.5,"Categorías de Saldo Promedio Cuenta",outer=T,font=2)
+
+########## ACREDITACIÓN SOBRE SUELDO ##########
+ m=matrix(c(1:3),nrow=1)
+ layout(m)
+ GRAFICO_PARAMETROS(5,Base_Coef_T,"","<=0.286","Coeficiente","")
+ abline(h=-0.41759)
+ GRAFICO_PARAMETROS(6,Base_Coef_T,"","(0.44,0.999]","Coeficiente","")
+ abline(h=0.55908)
+ GRAFICO_PARAMETROS(7,Base_Coef_T,"",">0.999","Coeficiente","")
+ abline(h=-0.34681)
+ par(oma=c(1,1,2.5,1))
+ mtext(side=3,line=0,cex=1.5,"Categorías de Acreditación/Sueldo",outer=T,font=2)
+
+########## CIUDAD DE RESIDENCIA ##########
+ m=matrix(c(1:2),nrow=1)
+ layout(m)
+ GRAFICO_PARAMETROS(8,Base_Coef_T,"","ESM;GUA;LA_LIB","Coeficiente","")
+ abline(h=-0.33114)
+ GRAFICO_PARAMETROS(9,Base_Coef_T,"","LAT;OTR;QUI;RIO;SA_R;SA_D","Coeficiente","")
+ abline(h=0.40211)
+ mtext(side=3,line=0,cex=1.5,"Categorías de Ciudad de Residencia",outer=T,font=2)
+
+########## RANGO MILITAR ##########
+ m=matrix(c(1:6),nrow=2)
+ layout(m)
+ GRAFICO_PARAMETROS(10,Base_Coef_T,"","CABOS","Coeficiente","")
+ abline(h=0.31396)
+ GRAFICO_PARAMETROS(11,Base_Coef_T,"","DESDE_SARGENTO","Coeficiente","")
+ abline(h=0.64353)
+ GRAFICO_PARAMETROS(12,Base_Coef_T,"","EMCI","Coeficiente","")
+ abline(h=-0.33083)
+ GRAFICO_PARAMETROS(13,Base_Coef_T,"","MAYORES_Y_GENERALES","Coeficiente","")
+ abline(h=0.84534)
+ GRAFICO_PARAMETROS(14,Base_Coef_T,"","OFICIALES_MENORES","Coeficiente","")
+ abline(h=0.79652)
+ GRAFICO_PARAMETROS(15,Base_Coef_T,"","PASIVO","Coeficiente","")
+ abline(h=-0.07248)
+ par(oma=c(1,1,2.5,1))
+ mtext(side=3,line=0,cex=1.5,"Categorías de Rango Militar",outer=T,font=2)
+
+#########D6#########
+ GRAFICO_PARAMETROS(16,Base_Coef_T,"D6","Propenso a ser Bueno","Coeficiente","")
+ abline(h=0.44831)
+
+########## Índice de Calificación ##########
+ m=matrix(c(1:3),nrow=1)
+ layout(m)
+ GRAFICO_PARAMETROS(17,Base_Coef_T,"","<=0.9","Coeficiente","")
+ abline(h=-0.5329)
+ GRAFICO_PARAMETROS(18,Base_Coef_T,"","(0.9,0.917]","Coeficiente","")
+ abline(h=-0.41059)
+ GRAFICO_PARAMETROS(19,Base_Coef_T,"","Nuevos","Coeficiente","")
+ abline(h=-0.04238)
+ par(oma=c(1,1,2.5,1))
+ mtext(side=3,line=0,cex=1.5,"Categorías de Índice de Calificación",outer=T,font=2)
+
+########## Número de Créditos de Consumo ##########
+ GRAFICO_PARAMETROS(20,Base_Coef_T,"Número de Créditos de Consumo","","Coeficiente","")
+ abline(h=-0.17458)
+
+########## TVCUPO_TC12 #############
+ GRAFICO_PARAMETROS(21,Base_Coef_T,"TVCUPO_TC12",">0","Coeficiente","")
+ abline(h=-0.4452)
+
+#########D7#########
+ GRAFICO_PARAMETROS(22,Base_Coef_T,"D7","Propenso a ser Bueno","Coeficiente","")
+ abline(h=0.18196)
+
+########## Índice Obligaciones 90 días ##########
+ GRAFICO_PARAMETROS(23,Base_Coef_T,"Índice Obligaciones 90 días","Propenso a ser Bueno","Coeficiente","")
+ abline(h=-0.78227)
+
+########## Índice Obligaciones 30 días ##########
+ GRAFICO_PARAMETROS(24,Base_Coef_T,"Índice Obligaciones 30 días","Propenso a ser Bueno","Coeficiente","")
+ abline(h=-0.32189)
+
+#########D10#########
+ GRAFICO_PARAMETROS(25,Base_Coef_T,"D10","Propenso a ser Bueno","Coeficiente","")
+ abline(h=0.17854)
+
+#########D1#########
+ GRAFICO_PARAMETROS(26,Base_Coef_T,"D1","Propenso a ser Bueno","Coeficiente","")
+ abline(h=0.24612)
+
+######### ESTABILIDAD HL ################################ 
+Base_Modelo$TIPO_CLIENTE_1=Base_Modelo$TIPO_CLIENTE
+Base_Modelo$TIPO_CLIENTE <- as.numeric(Base_Modelo$TIPO_CLIENTE)
+Base_Modelo$TIPO_CLIENTE[Base_Modelo$TIPO_CLIENTE==1]=0
+Base_Modelo$TIPO_CLIENTE[Base_Modelo$TIPO_CLIENTE==2]=1
+
+for (i in c(1:1000))
+{
+ d = sort(sample(nrow(Base_Modelo), nrow(Base_Modelo)*0.6)) 
+ train<-Base_Modelo[d,] 
+ test<-Base_Modelo[-d,] 
+ Modelo_Final_hl <- glm(TIPO_CLIENTE~D5+SPC+A_S+C_DIREC+RANGO+D6+ICALIF+N_Cconsumo_0+TVCUPO_TC12+D7+I_ObligacCH_90+I_ObligacCH_30+D10+D1,family=binomial,data=train)
+ DGY=HLgof.test(fit = fitted(Modelo_Final_hl), obs = train$TIPO_CLIENTE)
+ HLP=as.numeric(DGY$C$p.value)
+ if (i==1) {HLP_T=HLP} else {HLP_T=rbind(HLP_T,HLP)}
+}
+
+par(bg="cornsilk")
+plot(HLP_T,col="green4",type="l",lty=1,lwd=0.5,axes=F,xlab="",ylab="p-value",main = "Bootstrapping HL")
+axis(2, col.axis="blue", las=1)
+axis(1, col.axis="blue")
+abline(h=mean(HLP_T))
+abline(h=0.157,col=2,lty=2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+  
+
+
+

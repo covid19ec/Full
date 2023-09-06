@@ -1,0 +1,325 @@
+MORA=read.csv("file:///C:/Users/dgyanez/Documents/Scoring_Consumo_Militar/Bases_Brutas_TXT/SALDOS_COMPLETOS.txt",header=TRUE,sep="\t")
+Data_Total=read.csv("file:///C:/Users/dgyanez/Documents/Scoring_Consumo_Militar/Bases_Brutas_TXT/Data_Total.txt",header=TRUE,sep="\t")
+Montos=read.csv("file:///C:/Users/dgyanez/Documents/Scoring_Consumo_Militar/Bases_Brutas_TXT/Montos_desembolsados.txt",header=TRUE,sep="\t")
+#------------------------------------------------------------------------------------------
+ Base_Total <- merge(Data_Total, MORA, by.x="CEDULA", by.y="CEDULA")
+ Base_Total <- merge(Base_Total, Montos, by.x="CEDULA", by.y="IDENTIFICACION")
+#------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------
+  Base_Total$I_ObligacCH_30 <- as.factor(Base_Total$I_ObligacCH_30)
+  Base_Total$I_ObligacCH_60 <- as.factor(Base_Total$I_ObligacCH_60)
+  Base_Total$I_ObligacCH_90 <- as.factor(Base_Total$I_ObligacCH_90)
+  Base_Total$I_ObligacCH_120 <- as.factor(Base_Total$I_ObligacCH_120)
+  Base_Total$I_ObligacCA_0 <- as.factor(Base_Total$I_ObligacCA_0)
+
+########## GRUPO DE VARIABLES ##########
+# INDICE OBLIGACIONES MORA 
+  levels(Base_Total$I_ObligacCH_30) = c("Propenso a ser Bueno","Propenso a ser Malo")
+  levels(Base_Total$I_ObligacCH_60) = c("Propenso a ser Bueno","Propenso a ser Malo")
+  levels(Base_Total$I_ObligacCH_90) = c("Propenso a ser Bueno","Propenso a ser Malo")
+  levels(Base_Total$I_ObligacCH_120) = c("Propenso a ser Bueno","Propenso a ser Malo")
+  levels(Base_Total$I_ObligacCA_0) = c("Propenso a ser Bueno","Propenso a ser Malo")
+  Base_Total$I_ObligacCH_30 <- relevel(Base_Total$I_ObligacCH_30, ref="Propenso a ser Bueno")
+  Base_Total$I_ObligacCH_60 <- relevel(Base_Total$I_ObligacCH_60, ref="Propenso a ser Bueno")
+  Base_Total$I_ObligacCH_90 <- relevel(Base_Total$I_ObligacCH_90, ref="Propenso a ser Bueno")
+  Base_Total$I_ObligacCH_120 <- relevel(Base_Total$I_ObligacCH_120, ref="Propenso a ser Bueno")
+  Base_Total$I_ObligacCA_0 <- relevel(Base_Total$I_ObligacCA_0, ref="Propenso a ser Bueno")
+
+# PEOR CALIFICACIÓN CRÉDITOS DE CONSUMO HACE 3 MESES Y SALDO PROMEDIO CUENTA
+  Base_Total$D1=0 ### PREMIA
+  Base_Total$D1[(Base_Total$P_Cali_Ccons_.3=="No Dispone") & (Base_Total$SPC=="3B"|Base_Total$SPC=="3M"|Base_Total$SPC=="3A"|Base_Total$SPC=="4B"|Base_Total$SPC=="4M"|Base_Total$SPC=="4A"|Base_Total$SPC=="5B"|Base_Total$SPC=="9A"||Base_Total$SPC=="5M"||Base_Total$SPC=="7A")]=1
+  Base_Total$D1 <- as.factor(Base_Total$D1)
+  levels(Base_Total$D1) = c("Propenso a ser Malo","Propenso a ser Bueno")
+
+# TASA DE VARIACIÓN CUOTAS TOTALES TARJETA CRÉDITO HACE 12 MESES Y RANGO
+  Base_Total$D2=1 ### CASTIGA
+  Base_Total$D2[Base_Total$TVCUOTAS_TC12<=0 & (Base_Total$RANGO=="EMCI"|Base_Total$RANGO=="PASIVO")]=0
+  Base_Total$D2 <- as.factor(Base_Total$D2)
+  levels(Base_Total$D2) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# GÉNERO Y RANGO
+  Base_Total$D3=1 ### CASTIGA
+  Base_Total$D3[Base_Total$GENERO=="Masculino" & (Base_Total$RANGO=="EMCI"|Base_Total$RANGO=="PASIVO")]=0
+  Base_Total$D3 <- as.factor(Base_Total$D3)
+  levels(Base_Total$D3) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# TIPO DE VIVIENDA Y RANGO
+  Base_Total$D4=1 ### CASTIGA
+  Base_Total$D4[(Base_Total$T_VIVIE=="Arrendada"|Base_Total$T_VIVIE=="Familiares"|Base_Total$T_VIVIE=="Propia") & (Base_Total$RANGO=="EMCI"|Base_Total$RANGO=="PASIVO")]=0
+  Base_Total$D4 <- as.factor(Base_Total$D4)
+  levels(Base_Total$D4) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# EDAD, RANGO Y SALDO PROMEDIO CUENTA
+  Base_Total$D5=1 ### CASTIGA
+  Base_Total$D5[(Base_Total$EDAD<=44.08 & Base_Total$RANGO=="EMCI") | (Base_Total$EDAD>44.08 & (Base_Total$SPC=="1B"|Base_Total$SPC=="1M"|Base_Total$SPC=="1A"|Base_Total$SPC=="2B"))]=0
+  Base_Total$D5 <- as.factor(Base_Total$D5)
+  levels(Base_Total$D5) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# NIVEL DE EDUCACIÓN Y RANGO
+  Base_Total$D6=1 ### CASTIGA
+  Base_Total$D6[(Base_Total$N_EDUCA=="Otros Estudios"|Base_Total$N_EDUCA=="Post Doctorado"|Base_Total$N_EDUCA=="Secundaria"|Base_Total$N_EDUCA=="Vacío") & (Base_Total$RANGO=="EMCI"|Base_Total$RANGO=="PASIVO")]=0
+  Base_Total$D6 <- as.factor(Base_Total$D6)
+  levels(Base_Total$D6) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# NÚMERO DE CARGAS, RANGO Y ObligaT_CH
+  Base_Total$D7=0 ### PREMIA
+  Base_Total$D7[(Base_Total$N_CARGAS==0 & Base_Total$RANGO=="CABOS") | (Base_Total$N_CARGAS>0 & Base_Total$ObligaT_CH==0)]=1
+  Base_Total$D7 <- as.factor(Base_Total$D7)
+  levels(Base_Total$D7) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# ANTIGUEDAD Y ObligaT_CH
+  Base_Total$D8=1 ### CASTIGA
+  Base_Total$D8[Base_Total$ANTIG>234 & Base_Total$ObligaT_CH>0]=0
+  Base_Total$D8 <- as.factor(Base_Total$D8)
+  levels(Base_Total$D8) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# VARIACIÓN SALDO SECTOR REAL HACE 6 MESES Y RANGO
+  Base_Total$D9=1 ### CASTIGA
+  Base_Total$D9[Base_Total$VSALDO_SR6>-2 & (Base_Total$RANGO=="EMCI"|Base_Total$RANGO=="PASIVO")]=0 
+  Base_Total$D9 <- as.factor(Base_Total$D9)
+  levels(Base_Total$D9) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+
+# CUOTAS SECTOR FINANCIERO AL MOMENTO DE SOLICITAR EL CRÉDITO Y RANGO
+  Base_Total$D10=0 ### PREMIA
+  Base_Total$D10[(Base_Total$CUOTAS_SF_0>47 & Base_Total$CUOTAS_SF_0<=133) & (Base_Total$RANGO=="CABOS"|Base_Total$RANGO=="DESDE_SARGENTO"|Base_Total$RANGO=="SOLDADOS")]=1
+  Base_Total$D10 <- as.factor(Base_Total$D10)
+  levels(Base_Total$D10) = c("Propenso a ser Malo", "Propenso a ser Bueno")
+  
+# CIUDAD DE DIRECCION
+  Base_Total$C_DIREC <- as.character(Base_Total$C_DIREC)
+  Base_Total$C_DIREC[Base_Total$C_DIREC=="DURAN"|Base_Total$C_DIREC=="MACHALA"|Base_Total$C_DIREC=="MILAGRO"|Base_Total$C_DIREC=="QUEVEDO"|Base_Total$C_DIREC=="SALINAS"]="DUR;MAC;MIL;QUE;SAL"
+  Base_Total$C_DIREC[Base_Total$C_DIREC=="ESMERALDAS"|Base_Total$C_DIREC=="GUAYAQUIL"|Base_Total$C_DIREC=="LA LIBERTAD"]="ESM;GUA;LA_LIB;"
+  Base_Total$C_DIREC[Base_Total$C_DIREC=="LATACUNGA"|Base_Total$C_DIREC=="OTRASC"|Base_Total$C_DIREC=="QUITO"|Base_Total$C_DIREC=="RIOBAMBA"|Base_Total$C_DIREC=="SANTA ROSA"|Base_Total$C_DIREC=="SANTO DOMINGO"]="LAT;OTR;QUI;RIO;SA_R;SA_D"
+  Base_Total$C_DIREC <- as.factor(Base_Total$C_DIREC)
+  Base_Total$C_DIREC <- relevel(Base_Total$C_DIREC, ref="DUR;MAC;MIL;QUE;SAL")  
+
+# CIUDAD DE NACIMIENTO
+  Base_Total$C_NACIM <- as.character(Base_Total$C_NACIM)
+  Base_Total$C_NACIM[Base_Total$C_NACIM=="BALAO"|Base_Total$C_NACIM=="MACHALA"|Base_Total$C_NACIM=="SANTA ROSA"]="BAL;MAC;SA_R"
+  Base_Total$C_NACIM[Base_Total$C_NACIM=="DURAN"|Base_Total$C_NACIM=="ESMERALDAS"|Base_Total$C_NACIM=="GUAYAQUIL"|Base_Total$C_NACIM=="MILAGRO"|Base_Total$C_NACIM=="QUEVEDO"]="DUR;ESM;GUA;MIL;QUE"
+  Base_Total$C_NACIM[Base_Total$C_NACIM=="LATACUNGA"|Base_Total$C_NACIM=="OTRASC"|Base_Total$C_NACIM=="QUITO"]="LAT;OTR;QUI"
+  Base_Total$C_NACIM[Base_Total$C_NACIM=="LOJA"|Base_Total$C_NACIM=="RIOBAMBA"]="LOJA;RIOB"
+  Base_Total$C_NACIM <- as.factor(Base_Total$C_NACIM)
+  Base_Total$C_NACIM <- relevel(Base_Total$C_NACIM, ref="BAL;MAC;SA_R")
+
+# RANGO
+  Base_Total$RANGO <- relevel(Base_Total$RANGO, ref="SOLDADOS")
+
+# SALDO PROMEDIO CUENTA
+  Base_Total$SPC <- as.character(Base_Total$SPC) 
+  Base_Total$SPC[Base_Total$SPC=="1B"|Base_Total$SPC=="1M"|Base_Total$SPC=="1A"|Base_Total$SPC=="2B"]="1B;1M;1A;2B"
+  Base_Total$SPC[Base_Total$SPC=="2M"|Base_Total$SPC=="2A"|Base_Total$SPC=="Vacío"]="2M;2A;Vacío"
+  Base_Total$SPC[Base_Total$SPC=="3B"|Base_Total$SPC=="3M"|Base_Total$SPC=="3A"|Base_Total$SPC=="4B"|Base_Total$SPC=="4M"|Base_Total$SPC=="4A"|Base_Total$SPC=="5B"|Base_Total$SPC=="9A"|Base_Total$SPC=="5M"|Base_Total$SPC=="7A"]="3B;3M;3A;4B;4M;4A;5B;9A"
+  Base_Total$SPC <- as.factor(Base_Total$SPC)
+  Base_Total$SPC <- relevel(Base_Total$SPC, ref="2M;2A;Vacío")
+
+# ACREDITACIÓN SOBRE SUELDO
+  Base_Total$ficticia1=0
+  Base_Total$ficticia1[Base_Total$A_S > 0.286 & Base_Total$A_S <= 0.44]=1
+  Base_Total$ficticia1[Base_Total$A_S > 0.44 & Base_Total$A_S <= 0.999]=2
+  Base_Total$ficticia1[Base_Total$A_S > 0.999]=3
+  Base_Total$ficticia1 <- as.factor(Base_Total$ficticia1)
+  Base_Total$A_S = Base_Total$ficticia1
+  levels(Base_Total$A_S) = c("<=0.286","(0.286,0.44]","(0.44,0.999]",">0.999")
+  Base_Total$A_S <- relevel(Base_Total$A_S, ref="(0.286,0.44]")
+
+# TASA DE VARIACIÓN CUOTAS TOTALES
+  Base_Total$ficticia2=0
+  Base_Total$ficticia2[Base_Total$TVCUOTA_T12>-0.004 & Base_Total$TVCUOTA_T12<=0.398]=1
+  Base_Total$ficticia2[Base_Total$TVCUOTA_T12>0.398]=2
+  Base_Total$ficticia2 <- as.factor(Base_Total$ficticia2)
+  Base_Total$TVCUOTA_T12=Base_Total$ficticia2
+  levels(Base_Total$TVCUOTA_T12) = c("<=-0.004","(-0.004,0.398]",">0.398") 
+  Base_Total$TVCUOTA_T12 <- relevel(Base_Total$TVCUOTA_T12, ref="(-0.004,0.398]")
+
+# ICALIF 
+  Base_Total$ficticia3=0
+  Base_Total$ficticia3[Base_Total$ICALIF>0.9 & Base_Total$ICALIF<=0.917]=1
+  Base_Total$ficticia3[Base_Total$ICALIF>0.917]=2
+  Base_Total$ficticia3[is.na(Base_Total$ICALIF)==TRUE]=3
+  Base_Total$ficticia3 <- as.factor(Base_Total$ficticia3)
+  Base_Total$ICALIF = Base_Total$ficticia3
+  levels(Base_Total$ICALIF) = c("<=0.9","(0.9,0.917]",">0.917","Nuevos")
+  Base_Total$ICALIF <- relevel(Base_Total$ICALIF, ref=">0.917")
+
+# SALDO SECTOR FINANCIERO HOY
+  Base_Total$ficticia4=0
+  Base_Total$ficticia4[Base_Total$SALDO_SF_0>0]=1
+  Base_Total$ficticia4 <- as.factor(Base_Total$ficticia4)
+  Base_Total$SALDO_SF_0 = Base_Total$ficticia4
+  levels(Base_Total$SALDO_SF_0) = c("0",">0")
+  Base_Total$SALDO_SF_0 <- relevel(Base_Total$SALDO_SF_0, ref="0")
+
+# VARIACIÓN DEL # DE CRÉDITO DE CONSUMO
+  Base_Total$ficticia5=0
+  Base_Total$ficticia5[Base_Total$VN_Cconsumo_12>-4 & Base_Total$VN_Cconsumo_12<=-2]=1
+  Base_Total$ficticia5[Base_Total$VN_Cconsumo_12>-2 & Base_Total$VN_Cconsumo_12<=0]=2
+  Base_Total$ficticia5[Base_Total$VN_Cconsumo_12>0]=3
+  Base_Total$ficticia5 <- as.factor(Base_Total$ficticia5)
+  Base_Total$VN_Cconsumo_12 = Base_Total$ficticia5
+  levels(Base_Total$VN_Cconsumo_12) = c("<=-4","(-4,-2]","(-2,0]",">0")
+  Base_Total$VN_Cconsumo_12 <- relevel(Base_Total$VN_Cconsumo_12, ref="(-4,-2]")
+
+# TASA DE VARIACIÓN SALDO SECTOR FINANCIERO HACE 3 MESES
+  Base_Total$ficticia6=0
+  Base_Total$ficticia6[Base_Total$TVSALDO_SF3>-0.133 & Base_Total$TVSALDO_SF3<=0]=1
+  Base_Total$ficticia6[Base_Total$TVSALDO_SF3>0 & Base_Total$TVSALDO_SF3<=0.775]=2
+  Base_Total$ficticia6[Base_Total$TVSALDO_SF3>0.775]=3
+  Base_Total$ficticia6 <- as.factor(Base_Total$ficticia6)
+  Base_Total$TVSALDO_SF3 = Base_Total$ficticia6
+  Base_Total$TVSALDO_SF3 <- as.factor(Base_Total$TVSALDO_SF3)
+  levels(Base_Total$TVSALDO_SF3) = c("<=-0.133","(-0.133,0]","(0,0.775]",">0.775")
+  Base_Total$TVSALDO_SF3 <- relevel(Base_Total$TVSALDO_SF3, ref="<=-0.133")
+
+# TASA DE VARIACIÓN SALDO SECTOR FINANCIERO HACE 6 MESES
+  Base_Total$ficticia7=0
+  Base_Total$ficticia7[Base_Total$TVSALDO_SF6>-1.566 & Base_Total$TVSALDO_SF6<=-0.242]=1
+  Base_Total$ficticia7[Base_Total$TVSALDO_SF6>-0.242 & Base_Total$TVSALDO_SF6<=0]=2
+  Base_Total$ficticia7[Base_Total$TVSALDO_SF6>0 & Base_Total$TVSALDO_SF6<=1.264]=3
+  Base_Total$ficticia7[Base_Total$TVSALDO_SF6>1.264]=4
+  Base_Total$ficticia7 <- as.factor(Base_Total$ficticia7)
+  Base_Total$TVSALDO_SF6 = Base_Total$ficticia7
+  levels(Base_Total$TVSALDO_SF6) = c("<=-1.566","(-1.566,-0.242]","(-0.242,0]","(0,1.264]",">1.264")
+  Base_Total$TVSALDO_SF6 <- relevel(Base_Total$TVSALDO_SF6, ref="(-1.566,-0.242]")
+
+# CUOTAS TOTALES AL MOMENTO DE SOLICITAR EL CRÉDITO
+  Base_Total$ficticia8=0
+  Base_Total$ficticia8[Base_Total$CUOTAST_0>0 & Base_Total$CUOTAST_0<=46]=1
+  Base_Total$ficticia8[Base_Total$CUOTAST_0>46 & Base_Total$CUOTAST_0<=135]=2
+  Base_Total$ficticia8[Base_Total$CUOTAST_0>135 & Base_Total$CUOTAST_0<=230]=3
+  Base_Total$ficticia8[Base_Total$CUOTAST_0>230]=4
+  Base_Total$ficticia8 <- as.factor(Base_Total$ficticia8)
+  Base_Total$CUOTAST_0 = Base_Total$ficticia8
+  levels(Base_Total$CUOTAST_0) = c("0","(0,46]","(46,135]","(135,230]",">230")
+  Base_Total$CUOTAST_0 <- relevel(Base_Total$CUOTAST_0, ref="(135,230]")
+
+# CUOTAS TARJETA DE CRÉDITO AL MOMENTO DE SOLICITAR EL CRÉDITO
+  Base_Total$ficticia9=0
+  Base_Total$ficticia9[Base_Total$CUOTAS_TC_0>0 & Base_Total$CUOTAS_TC_0<=374]=1
+  Base_Total$ficticia9[Base_Total$CUOTAS_TC_0>374]=2
+  Base_Total$ficticia9 <- as.factor(Base_Total$ficticia9)
+  Base_Total$CUOTAS_TC_0 = Base_Total$ficticia9
+  levels(Base_Total$CUOTAS_TC_0) = c("0","(0,374]",">374")
+  Base_Total$CUOTAS_TC_0 <- relevel(Base_Total$CUOTAS_TC_0, ref=">374")
+
+# TASA DE VARIACiÓN CUPO TARJETA DE CRÉDITO HACE 12 MESES
+  Base_Total$ficticia10=0
+  Base_Total$ficticia10[Base_Total$TVCUPO_TC12>0]=1
+  Base_Total$ficticia10 <- as.factor(Base_Total$ficticia10)
+  Base_Total$TVCUPO_TC12 = Base_Total$ficticia10
+  levels(Base_Total$TVCUPO_TC12) = c("<=0",">0")
+  Base_Total$TVCUPO_TC12 <- relevel(Base_Total$TVCUPO_TC12, ref="<=0")
+
+# TASA DE VARIACIÓN SALDOS TOTALES HACE 3 MESES RESPECTO A ACREDITACIÓN
+  Base_Total$ficticia11=0
+  Base_Total$ficticia11[Base_Total$TVSaldoT_Ccons3>-0.345 & Base_Total$TVSaldoT_Ccons3<=-0.002]=1
+  Base_Total$ficticia11[Base_Total$TVSaldoT_Ccons3>-0.002 & Base_Total$TVSaldoT_Ccons3<=0]=2
+  Base_Total$ficticia11[Base_Total$TVSaldoT_Ccons3>0 & Base_Total$TVSaldoT_Ccons3<=0.678]=3
+  Base_Total$ficticia11[Base_Total$TVSaldoT_Ccons3>0.678]=4
+  Base_Total$ficticia11 <- as.factor(Base_Total$ficticia11)
+  Base_Total$TVSaldoT_Ccons3 = Base_Total$ficticia11
+  levels(Base_Total$TVSaldoT_Ccons3) = c("<=-0.345","(-0.345,-0.002]","(-0.002,0]","(0,0.678]",">0.678")
+  Base_Total$TVSaldoT_Ccons3 <- relevel(Base_Total$TVSaldoT_Ccons3, ref="(-0.345,-0.002]")
+
+# TASA DE VARIACIÓN SALDOS TOTALES HACE 6 MESES RESPECTO A ACREDITACIÓN
+  Base_Total$ficticia12=0
+  Base_Total$ficticia12[Base_Total$TVSaldoT_Ccons6>-0.103 & Base_Total$TVSaldoT_Ccons6<=-0.002]=1
+  Base_Total$ficticia12[Base_Total$TVSaldoT_Ccons6>-0.002 & Base_Total$TVSaldoT_Ccons6<=0]=2
+  Base_Total$ficticia12[Base_Total$TVSaldoT_Ccons6>0 & Base_Total$TVSaldoT_Ccons6<=0.865]=3
+  Base_Total$ficticia12[Base_Total$TVSaldoT_Ccons6>0.865]=4
+  Base_Total$ficticia12 <- as.factor(Base_Total$ficticia12)
+  Base_Total$TVSaldoT_Ccons6 = Base_Total$ficticia12
+  levels(Base_Total$TVSaldoT_Ccons6) = c("<=-0.103","(-0.103,-0.002]","(-0.002,0]","(0,0.865]",">0.865")
+  Base_Total$TVSaldoT_Ccons6 <- relevel(Base_Total$TVSaldoT_Ccons6, ref="(0,0.865]")
+
+# VARIACIÓN # OPERACIONES SECTOR FINANCIERO HACE 12 MESES
+  Base_Total$ficticia13=0
+  Base_Total$ficticia13[Base_Total$VN_OperaSF_12>-2 & Base_Total$VN_OperaSF_12<=0]=1
+  Base_Total$ficticia13[Base_Total$VN_OperaSF_12>0]=2
+  Base_Total$ficticia13 <- as.factor(Base_Total$ficticia13)
+  Base_Total$VN_OperaSF_12 = Base_Total$ficticia13
+  levels(Base_Total$VN_OperaSF_12) = c("<=-2","(-2,0]",">0")
+  Base_Total$VN_OperaSF_12 <- relevel(Base_Total$VN_OperaSF_12, ref="(-2,0]")
+
+# VARIACIÓN SALDO SECTOR FINANCIERO HACE 3 MESES
+  Base_Total$ficticia14=0
+  Base_Total$ficticia14[Base_Total$VSALDO_SF3>-0.3 & Base_Total$VSALDO_SF3<=0]=1
+  Base_Total$ficticia14[Base_Total$VSALDO_SF3>0]=2
+  Base_Total$ficticia14 <- as.factor(Base_Total$ficticia14)
+  Base_Total$VSALDO_SF3 = Base_Total$ficticia14
+  levels(Base_Total$VSALDO_SF3) = c("<=-0.3","(-0.3,0]",">0")
+  Base_Total$VSALDO_SF3 <- relevel(Base_Total$VSALDO_SF3, ref="<=-0.3")
+
+# VARIACIÓN SALDO SECTOR FINANCIERO HACE 6 MESES
+  Base_Total$ficticia15=0
+  Base_Total$ficticia15[Base_Total$VSALDO_SF6>-1 & Base_Total$VSALDO_SF6<=0]=1
+  Base_Total$ficticia15[Base_Total$VSALDO_SF6>0 & Base_Total$VSALDO_SF6<=323]=2
+  Base_Total$ficticia15[Base_Total$VSALDO_SF6>323]=3
+  Base_Total$ficticia15 <- as.factor(Base_Total$ficticia15)
+  Base_Total$VSALDO_SF6 = Base_Total$ficticia15
+  levels(Base_Total$VSALDO_SF6) = c("<=-1","(-1,0]","(0,323]",">323")
+  Base_Total$VSALDO_SF6 <- relevel(Base_Total$VSALDO_SF6, ref="<=-1")
+
+########################################################################################################################
+PERFILES POR CALIFICACIÓN
+########################################################################################################################
+# Probabilidad de ser Bueno y Puntaje de acuerdo a esta probabilidad
+  Base_Total$Prob<-predict(Modelo_Final,type='response',Base_Total)
+  Base_Total$Prob=round(1000*Base_Total$Prob,0)
+  Base_Total$score<-predict(Modelo_Final,type='link',Base_Total)
+  cuan = quantile(Base_Total$Prob,c(0:20)/20)
+  Base_Total$PERC=cut(Base_Total$Prob,breaks=cuan)
+  Mont <- aggregate(MONTO_Dic~PERC,data=Base_Total,sum)
+  MontR <- aggregate(EN_RIESGO_Dic~PERC,data=Base_Total,sum)
+  Mora_Dic = round(100*MontR$EN_RIESGO_Dic/Mont$MONTO_Dic,2)
+  cuanp=as.numeric(cuan)
+  for (i in 1:20)
+  {
+   puntaje=round((cuanp[i]+cuanp[i+1])/2,0)
+   if (i==1) {puntaje_t=puntaje} else {puntaje_t=rbind(puntaje_t,puntaje)}
+  }
+  
+# Análisis de quiebres para segmentar
+  library(strucchange)
+  base <- cbind(Mora_Dic)
+  base2 <- ts(base, start = c(2006, 1), frequency = 12)
+  # Agrupar la matriz de datos en nivenamesl, diferencia y los residuos
+    base3<- cbind(base2, diff(base2),lag(diff(base2),1))
+    id2=as.character(paste("d", "Mora_Dic", sep = ""))
+    id3=as.character(paste(id2,"_1", sep = ""))
+    nombres=as.data.frame(rbind("Mora_Dic",id2,id3))
+    colnames(base3)=nombres[,1]
+  
+  # Modelo AR(1)
+    ecm.model <- Mora_Dic~ 1
+
+  # Identifica las fechas de los cambios estructurales con CUSUM
+    bp.seat <- breakpoints(ecm.model, data = base3)
+    bp.seat2 <- breakpoints(bp.seat, breaks = 2)
+    summary(bp.seat2)
+ 
+# Número de Clientes por Calificación
+  Base_Total$Calif=0
+  Base_Total$Calif[Base_Total$Prob>puntaje_t[3] & Base_Total$Prob<=puntaje_t[9]]=1
+  Base_Total$Calif[Base_Total$Prob>puntaje_t[9]]=2
+  Base_Total$Calif = as.factor(Base_Total$Calif)
+  levels(Base_Total$Calif) = c("A-","A","A+")
+  aggregate(MONTO~Calif,data=Base_Total,sum)
+  Par=round(100*(table(Base_Total$Calif)/length(Base_Total[,1])),digit=0)
+
+# Gráfica
+  par(bg="cornsilk")
+  plot(puntaje_t,Mora_Dic,col="green4",type="b",lty=1,lwd=0.5,pch=21,axes=T,xlab="Puntaje",ylab="Tasa de Morosidad (%)",main = "Mora Diciembre un Año Después de Otorgar el Crédito",cex.axis=0.9,las=2.5)
+  abline(v=c(puntaje_t[3],puntaje_t[9]),col=c(2,4)) 
+  text(270,2.2,paste("A-","(",Par[1],"%",")"))
+  text(580,2.2,paste("A","(",Par[2],"%",")"))
+  text(870,2.2,paste("A+","(",Par[3],"%",")")) 
+
+write.table(Base_Total,"Resultado.txt",dec=".",sep="\t")
+save(Puntaje_Modelo,Mora_Dic,file="Mora_Dic.RData")
+
+
+
+
+
+
